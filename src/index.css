@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@property --scroll-thumb {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #30271d;
+}
+
+::selection {
+  background-color: #705a42 !important;
+  color: #0a0806 !important;
+}
+
+::-moz-selection {
+  background-color: #705a42 !important;
+  color: #0a0806 !important;
+}
+
+@layer base {
+  * {
+    border-radius: 0px !important;
+    box-shadow: none !important;
+  }
+
+  html, body {
+    background-color: #0a0806;
+    color: #705a42;
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    margin: 0;
+    padding: 0;
+    scroll-behavior: smooth;
+  }
+
+  .scroll-container {
+    --scroll-thumb: #30271d;
+    transition: --scroll-thumb 0.3s ease;
+  }
+
+  .scroll-container.is-scrolling {
+    --scroll-thumb: #705a42;
+  }
+
+  /* Custom terminal scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0a0806;
+    border-left: 1px solid #30271d;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb, #30271d);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #705a42;
+  }
+}
+
+@keyframes blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+.animate-blink {
+  animation: blink 1s infinite;
+}

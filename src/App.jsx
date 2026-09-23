@@ -110,7 +110,136 @@ function SplitText({ text, className = '', onHover, onLeave }) {
   );
 }
 
+const SECTION_NAMES = [
+  'hero',
+  'system-01',
+  'system-02',
+  'system-03',
+  'system-04',
+  'focus-areas',
+  'transmission',
+];
+
+function FloatingCLI({ containerRef }) {
+  const [display, setDisplay] = useState({ text: '', submitAnim: false });
+  const anchoredIndexRef = useRef(0);
+  const submitTimeoutRef = useRef(null);
+  const isSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Initialize anchored index based on current scroll position
+    const vh = container.clientHeight || window.innerHeight;
+    anchoredIndexRef.current = Math.round(container.scrollTop / vh);
+
+    let rafId;
+    const handleScrollUpdate = () => {
+      if (isSubmittingRef.current) return;
+
+      const scrollY = container.scrollTop;
+      const currentVh = container.clientHeight || window.innerHeight;
+      const exactIndex = scrollY / currentVh;
+      const nearestIndex = Math.round(exactIndex);
+      const isSnapped = Math.abs(exactIndex - nearestIndex) < 0.02;
+
+      if (isSnapped) {
+        if (nearestIndex !== anchoredIndexRef.current) {
+          // Reached destination page! Submit animation
+          isSubmittingRef.current = true;
+          const isDown = nearestIndex > anchoredIndexRef.current;
+          const targetName = SECTION_NAMES[nearestIndex] || 'section';
+          const commandStr = isDown ? `cd ./${targetName}` : `cd ../${targetName}`;
+
+          setDisplay({ text: commandStr, submitAnim: true });
+
+          if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+          submitTimeoutRef.current = setTimeout(() => {
+            anchoredIndexRef.current = nearestIndex;
+            isSubmittingRef.current = false;
+            setDisplay({ text: '', submitAnim: false });
+          }, 350);
+        } else {
+          // Snapped back to starting page
+          setDisplay((prev) => (prev.text !== '' ? { text: '', submitAnim: false } : prev));
+        }
+      } else {
+        // In transit between sections
+        if (Math.abs(exactIndex - anchoredIndexRef.current) > 1.1) {
+          anchoredIndexRef.current = Math.floor(exactIndex);
+        }
+
+        const offset = exactIndex - anchoredIndexRef.current;
+        let targetIndex;
+        let progress;
+        let commandStr = '';
+
+        if (offset > 0) {
+          targetIndex = anchoredIndexRef.current + 1;
+          if (targetIndex < SECTION_NAMES.length) {
+            progress = Math.min(Math.max(offset, 0), 1);
+            commandStr = `cd ./${SECTION_NAMES[targetIndex]}`;
+          }
+        } else if (offset < 0) {
+          targetIndex = anchoredIndexRef.current - 1;
+          if (targetIndex >= 0) {
+            progress = Math.min(Math.max(Math.abs(offset), 0), 1);
+            commandStr = `cd ../${SECTION_NAMES[targetIndex]}`;
+          }
+        }
+
+        if (commandStr) {
+          const charsToType = Math.floor(progress * commandStr.length);
+          const newText = commandStr.substring(0, charsToType);
+          setDisplay((prev) => {
+            if (prev.text !== newText || prev.submitAnim) {
+              return { text: newText, submitAnim: false };
+            }
+            return prev;
+          });
+        } else {
+          setDisplay((prev) => (prev.text !== '' ? { text: '', submitAnim: false } : prev));
+        }
+      }
+    };
+
+    const onScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(handleScrollUpdate);
+    };
+
+    container.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => {
+      container.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(rafId);
+      if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+    };
+  }, [containerRef]);
+
+  if (!display.text && !display.submitAnim) return null;
+
+  return (
+    <div
+      aria-hidden="true"
+      className={`fixed top-6 left-6 md:top-8 md:left-12 z-50 pointer-events-none font-mono text-xs md:text-sm tracking-wider uppercase transition-all duration-300 ease-out select-none ${
+        display.submitAnim
+          ? 'scale-110 -translate-y-1 opacity-0 text-offwhite'
+          : 'scale-100 translate-y-0 opacity-100 text-offwhite'
+      }`}
+    >
+      <span className="text-muted mr-2">~ $</span>
+      <span>{display.text}</span>
+      {!display.submitAnim && (
+        <span className="inline-block bg-offwhite w-[1ch] h-[1.1em] ml-1 align-middle animate-blink" />
+      )}
+    </div>
+  );
+}
+
 export default function App() {
+  const containerRef = useRef(null);
   const [activeSection, setActiveSection] = useState('hero');
   const [isHovering, setIsHovering] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -152,11 +281,13 @@ export default function App() {
 
   return (
     <div
+      ref={containerRef}
       onScroll={handleScroll}
       className={`scroll-container h-[100dvh] w-full overflow-y-auto snap-y snap-mandatory bg-background text-muted ${
         isScrolling ? 'is-scrolling' : ''
       }`}
     >
+      <FloatingCLI containerRef={containerRef} />
       {/* 01. Hero Section */}
       <section
         data-section-id="hero"

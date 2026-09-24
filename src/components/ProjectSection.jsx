@@ -134,7 +134,7 @@ export default function ProjectSection({
       {/* Horizontal Scrollable Pages Container */}
       <div
         ref={pagesContainerRef}
-        className="relative flex overflow-x-auto snap-x snap-mandatory w-full scroll-smooth hide-scrollbar touch-pan-x gap-8 md:gap-16 pb-2"
+        className="relative flex overflow-x-auto snap-x snap-mandatory w-full hide-scrollbar gap-8 md:gap-16 pb-2"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {rawPages.map((page, pIdx) => {

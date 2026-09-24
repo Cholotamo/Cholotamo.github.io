@@ -62,7 +62,7 @@ export default function FocusSection({
             : totalCount === 3
             ? 'md:grid-cols-3'
             : 'md:grid-cols-4'
-        } gap-8 md:gap-16 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none w-full scroll-smooth hide-scrollbar touch-pan-x overscroll-x-contain pb-6 md:pb-0`}
+        } gap-8 md:gap-16 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none w-full hide-scrollbar overscroll-x-contain pb-6 md:pb-0`}
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {expertise.map((item, idx) => {

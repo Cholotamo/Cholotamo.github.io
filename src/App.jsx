@@ -120,14 +120,18 @@ const SECTION_NAMES = [
   'transmission',
 ];
 
-function FloatingCLI({ containerRef }) {
+const CORE_NAMES = ['core-01', 'core-02', 'core-03'];
+
+function FloatingCLI({ containerRef, horizontalContainerRef, activeSection }) {
   const [display, setDisplay] = useState({ text: '', submitAnim: false });
   const anchoredIndexRef = useRef(0);
+  const horizontalAnchoredIndexRef = useRef(0);
   const submitTimeoutRef = useRef(null);
   const isSubmittingRef = useRef(false);
 
+  // Vertical scroll effect
   useEffect(() => {
-    const container = containerRef.current;
+    const container = containerRef?.current;
     if (!container) return;
 
     // Initialize anchored index based on current scroll position
@@ -218,6 +222,115 @@ function FloatingCLI({ containerRef }) {
     };
   }, [containerRef]);
 
+  // Horizontal scroll effect (core competencies on mobile)
+  useEffect(() => {
+    const hContainer = horizontalContainerRef?.current;
+    if (!hContainer) return;
+
+    // Reset horizontal anchor based on initial scrollLeft
+    const updateInitialAnchor = () => {
+      const children = hContainer.children;
+      if (children && children.length >= 2) {
+        const step = children[1].offsetLeft - children[0].offsetLeft;
+        if (step > 0) {
+          horizontalAnchoredIndexRef.current = Math.max(
+            0,
+            Math.min(CORE_NAMES.length - 1, Math.round(hContainer.scrollLeft / step))
+          );
+        }
+      }
+    };
+    updateInitialAnchor();
+
+    let rafId;
+    const handleHorizontalScrollUpdate = () => {
+      if (isSubmittingRef.current) return;
+      if (activeSection !== 'expertise') return;
+
+      const scrollX = hContainer.scrollLeft;
+      const children = hContainer.children;
+      if (!children || children.length < 2) return;
+
+      const step = children[1].offsetLeft - children[0].offsetLeft;
+      if (!step || step <= 0) return;
+
+      const exactIndex = scrollX / step;
+      const nearestIndex = Math.max(0, Math.min(CORE_NAMES.length - 1, Math.round(exactIndex)));
+      const isSnapped = Math.abs(exactIndex - nearestIndex) < 0.03;
+
+      if (isSnapped) {
+        if (nearestIndex !== horizontalAnchoredIndexRef.current) {
+          // Reached destination core competency!
+          isSubmittingRef.current = true;
+          const isRight = nearestIndex > horizontalAnchoredIndexRef.current;
+          const targetName = CORE_NAMES[nearestIndex] || 'core';
+          const commandStr = isRight ? `cd ./${targetName}` : `cd ../${targetName}`;
+
+          setDisplay({ text: commandStr, submitAnim: true });
+
+          if (submitTimeoutRef.current) clearTimeout(submitTimeoutRef.current);
+          submitTimeoutRef.current = setTimeout(() => {
+            horizontalAnchoredIndexRef.current = nearestIndex;
+            isSubmittingRef.current = false;
+            setDisplay({ text: '', submitAnim: false });
+          }, 350);
+        } else {
+          // Snapped back to starting competency
+          setDisplay((prev) => (prev.text !== '' ? { text: '', submitAnim: false } : prev));
+        }
+      } else {
+        // In transit between core competencies
+        if (Math.abs(exactIndex - horizontalAnchoredIndexRef.current) > 1.1) {
+          horizontalAnchoredIndexRef.current = Math.floor(exactIndex);
+        }
+
+        const offset = exactIndex - horizontalAnchoredIndexRef.current;
+        let targetIndex;
+        let progress;
+        let commandStr = '';
+
+        if (offset > 0) {
+          targetIndex = horizontalAnchoredIndexRef.current + 1;
+          if (targetIndex < CORE_NAMES.length) {
+            progress = Math.min(Math.max(offset, 0), 1);
+            commandStr = `cd ./${CORE_NAMES[targetIndex]}`;
+          }
+        } else if (offset < 0) {
+          targetIndex = horizontalAnchoredIndexRef.current - 1;
+          if (targetIndex >= 0) {
+            progress = Math.min(Math.max(Math.abs(offset), 0), 1);
+            commandStr = `cd ../${CORE_NAMES[targetIndex]}`;
+          }
+        }
+
+        if (commandStr) {
+          const charsToType = Math.floor(progress * commandStr.length);
+          const newText = commandStr.substring(0, charsToType);
+          setDisplay((prev) => {
+            if (prev.text !== newText || prev.submitAnim) {
+              return { text: newText, submitAnim: false };
+            }
+            return prev;
+          });
+        } else {
+          setDisplay((prev) => (prev.text !== '' ? { text: '', submitAnim: false } : prev));
+        }
+      }
+    };
+
+    const onHScroll = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(handleHorizontalScrollUpdate);
+    };
+
+    hContainer.addEventListener('scroll', onHScroll, { passive: true });
+
+    return () => {
+      hContainer.removeEventListener('scroll', onHScroll);
+      cancelAnimationFrame(rafId);
+    };
+  }, [horizontalContainerRef, activeSection]);
+
   if (!display.text && !display.submitAnim) return null;
 
   return (
@@ -240,7 +353,11 @@ function FloatingCLI({ containerRef }) {
 
 export default function App() {
   const containerRef = useRef(null);
+  const focusContainerRef = useRef(null);
+  const cardsRef = useRef([]);
   const [activeSection, setActiveSection] = useState('hero');
+  const [activeFocusIndex, setActiveFocusIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef(null);
@@ -256,6 +373,42 @@ export default function App() {
     scrollTimeoutRef.current = setTimeout(() => {
       setIsScrolling(false);
     }, 600);
+  };
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const hContainer = focusContainerRef.current;
+    if (!hContainer) return;
+
+    const handleFocusScroll = () => {
+      const children = hContainer.children;
+      if (!children || children.length < 2) return;
+      const step = children[1].offsetLeft - children[0].offsetLeft;
+      if (!step || step <= 0) return;
+      const exactIndex = hContainer.scrollLeft / step;
+      const nearest = Math.max(0, Math.min(EXPERTISE.length - 1, Math.round(exactIndex)));
+      setActiveFocusIndex(nearest);
+    };
+
+    hContainer.addEventListener('scroll', handleFocusScroll, { passive: true });
+    return () => hContainer.removeEventListener('scroll', handleFocusScroll);
+  }, []);
+
+  const scrollToCompetency = (index) => {
+    const hContainer = focusContainerRef.current;
+    if (!hContainer) return;
+    const children = hContainer.children;
+    if (children && children[index]) {
+      children[index].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
   };
 
   useEffect(() => {
@@ -287,7 +440,11 @@ export default function App() {
         isScrolling ? 'is-scrolling' : ''
       }`}
     >
-      <FloatingCLI containerRef={containerRef} />
+      <FloatingCLI
+        containerRef={containerRef}
+        horizontalContainerRef={focusContainerRef}
+        activeSection={activeSection}
+      />
       {/* 01. Hero Section */}
       <section
         data-section-id="hero"
@@ -432,7 +589,7 @@ export default function App() {
             data-section-id="expertise"
             className="min-h-[100dvh] snap-start flex flex-col justify-center px-6 md:px-16 lg:px-24 max-w-7xl mx-auto border-t border-border cursor-default"
           >
-            <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-20">
+            <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-12 md:mb-20">
               <h2
                 className={`text-4xl md:text-6xl font-bold uppercase tracking-tight transition-colors duration-300 ${
                   isActive ? 'text-offwhite' : 'text-muted'
@@ -440,66 +597,112 @@ export default function App() {
               >
                 <SplitText text="FOCUS AREAS" onHover={handleHover} onLeave={handleLeave} />
               </h2>
-              <span
-                className={`text-sm tracking-widest uppercase mt-4 md:mt-0 transition-colors duration-300 ${
-                  isActive ? 'text-silver' : 'text-muted'
-                }`}
-              >
-                <SplitText
-                  text="[ CORE COMPETENCIES ]"
-                  onHover={handleHover}
-                  onLeave={handleLeave}
-                />
-              </span>
+              <div className="flex items-center justify-between mt-4 md:mt-0">
+                <span
+                  className={`text-sm tracking-widest uppercase transition-colors duration-300 ${
+                    isActive ? 'text-silver' : 'text-muted'
+                  }`}
+                >
+                  <SplitText
+                    text="[ CORE COMPETENCIES ]"
+                    onHover={handleHover}
+                    onLeave={handleLeave}
+                  />
+                </span>
+                <span
+                  className={`md:hidden text-xs font-mono tracking-widest transition-colors duration-300 ${
+                    isActive ? 'text-offwhite' : 'text-muted'
+                  }`}
+                >
+                  [ 0{activeFocusIndex + 1} / 03 ]
+                </span>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-16">
-              {EXPERTISE.map((item, idx) => (
-                <div
-                  key={item.area}
-                  tabIndex={0}
-                  className="flex flex-col justify-between cursor-default outline-none"
-                >
-                  <div>
-                    <span
-                      className={`text-xs tracking-widest block mb-4 transition-colors duration-300 ${
-                        isActive ? 'text-silver' : 'text-muted'
+            <div
+              ref={focusContainerRef}
+              className="relative flex md:grid md:grid-cols-3 gap-8 md:gap-16 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none w-full scroll-smooth hide-scrollbar touch-pan-x overscroll-x-contain pb-6 md:pb-0"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              {EXPERTISE.map((item, idx) => {
+                const isItemActive = isActive && (!isMobile || activeFocusIndex === idx);
+                return (
+                  <div
+                    key={item.area}
+                    ref={(el) => (cardsRef.current[idx] = el)}
+                    tabIndex={0}
+                    className="w-full md:w-auto shrink-0 md:shrink snap-center md:snap-align-none flex flex-col justify-between cursor-default outline-none transition-colors duration-300"
+                  >
+                    <div>
+                      <span
+                        className={`text-xs tracking-widest block mb-4 transition-colors duration-300 ${
+                          isItemActive ? 'text-silver' : 'text-muted'
+                        }`}
+                      >
+                        <SplitText
+                          text={item.area}
+                          onHover={handleHover}
+                          onLeave={handleLeave}
+                        />
+                      </span>
+                      <h3
+                        className={`text-2xl font-bold uppercase tracking-tight mb-6 transition-colors duration-300 ${
+                          isItemActive ? 'text-offwhite' : 'text-muted'
+                        }`}
+                      >
+                        <SplitText
+                          text={item.title}
+                          onHover={handleHover}
+                          onLeave={handleLeave}
+                        />
+                      </h3>
+                      <p
+                        className={`text-base leading-relaxed transition-colors duration-300 ${
+                          isItemActive ? 'text-silver' : 'text-muted'
+                        }`}
+                      >
+                        <SplitText
+                          text={item.detail}
+                          onHover={handleHover}
+                          onLeave={handleLeave}
+                        />
+                        {!isHovering &&
+                          isItemActive &&
+                          (isMobile ? true : idx === EXPERTISE.length - 1) && (
+                            <Blinker />
+                          )}
+                      </p>
+                    </div>
+
+                    {/* Mobile bottom indicator & navigation */}
+                    <div
+                      className={`mt-10 pt-4 border-t border-border flex md:hidden items-center justify-between text-xs tracking-widest uppercase transition-colors duration-300 ${
+                        isItemActive ? 'text-silver' : 'text-muted'
                       }`}
                     >
-                      <SplitText
-                        text={item.area}
-                        onHover={handleHover}
-                        onLeave={handleLeave}
-                      />
-                    </span>
-                    <h3
-                      className={`text-2xl font-bold uppercase tracking-tight mb-6 transition-colors duration-300 ${
-                        isActive ? 'text-offwhite' : 'text-muted'
-                      }`}
-                    >
-                      <SplitText
-                        text={item.title}
-                        onHover={handleHover}
-                        onLeave={handleLeave}
-                      />
-                    </h3>
-                    <p
-                      className={`text-base leading-relaxed transition-colors duration-300 ${
-                        isActive ? 'text-silver' : 'text-muted'
-                      }`}
-                    >
-                      <SplitText
-                        text={item.detail}
-                        onHover={handleHover}
-                        onLeave={handleLeave}
-                      />
-                      {!isHovering && isActive && idx === EXPERTISE.length - 1 && (
-                        <Blinker />
-                      )}
-                    </p>
+                      <button
+                        type="button"
+                        onClick={() => scrollToCompetency(Math.max(0, idx - 1))}
+                        disabled={idx === 0}
+                        className="hover:text-offwhite transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default"
+                      >
+                        &larr; PREV
+                      </button>
+                      <span className={isItemActive ? 'text-offwhite' : 'text-muted'}>
+                        [ 0{idx + 1} / 03 ]
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => scrollToCompetency(Math.min(EXPERTISE.length - 1, idx + 1))}
+                        disabled={idx === EXPERTISE.length - 1}
+                        className="hover:text-offwhite transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default"
+                      >
+                        NEXT &rarr;
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         );

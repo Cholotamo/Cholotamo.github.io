@@ -159,14 +159,18 @@ export default function ProjectSection({
               className="w-full shrink-0 snap-center flex flex-col justify-center cursor-default outline-none transition-colors duration-300"
             >
               {page.pageTitle && (
-                <div className="text-xs md:text-sm font-mono tracking-widest text-silver uppercase mb-4">
+                <div
+                  className={`text-xs md:text-sm font-mono tracking-widest uppercase mb-4 transition-colors duration-300 ${
+                    isPageActive ? 'text-silver' : 'text-muted'
+                  }`}
+                >
                   [ {page.pageTitle} ]
                 </div>
               )}
 
               <p
                 className={`text-lg sm:text-xl md:text-2xl max-w-4xl leading-relaxed mb-8 transition-colors duration-300 ${
-                  isActive ? 'text-silver' : 'text-muted'
+                  isPageActive ? 'text-silver' : 'text-muted'
                 }`}
               >
                 <SplitText
@@ -184,7 +188,7 @@ export default function ProjectSection({
                     <span
                       key={tag}
                       className={`border px-3 py-1 text-xs tracking-wider uppercase transition-colors duration-300 ${
-                        isActive
+                        isPageActive
                           ? 'text-offwhite border-border-active'
                           : 'text-muted border-border'
                       }`}
@@ -197,7 +201,11 @@ export default function ProjectSection({
 
               {/* Render Embedded JS Demo if configured */}
               {page.demoId && (
-                <div className="mb-8">
+                <div
+                  className={`mb-8 transition-opacity duration-300 ${
+                    isPageActive ? 'opacity-100' : 'opacity-40'
+                  }`}
+                >
                   <DemoRenderer
                     demoId={page.demoId}
                     demoConfig={page.demoConfig}
@@ -208,7 +216,7 @@ export default function ProjectSection({
               {/* Metric & In-system Navigation Controls */}
               <div
                 className={`pt-6 border-t border-border flex items-center justify-between text-xs tracking-widest uppercase transition-colors duration-300 ${
-                  isActive ? 'text-silver' : 'text-muted'
+                  isPageActive ? 'text-silver' : 'text-muted'
                 }`}
               >
                 <span>
@@ -229,7 +237,9 @@ export default function ProjectSection({
                       type="button"
                       onClick={() => scrollToPage(Math.max(0, pIdx - 1))}
                       disabled={pIdx === 0}
-                      className="hover:text-offwhite transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default"
+                      className={`hover:text-offwhite transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default ${
+                        isPageActive ? 'text-silver' : 'text-muted'
+                      }`}
                     >
                       &larr; PREV
                     </button>
@@ -240,7 +250,9 @@ export default function ProjectSection({
                       type="button"
                       onClick={() => scrollToPage(Math.min(rawPages.length - 1, pIdx + 1))}
                       disabled={pIdx === rawPages.length - 1}
-                      className="hover:text-offwhite transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default"
+                      className={`hover:text-offwhite transition-colors cursor-pointer disabled:opacity-20 disabled:cursor-default ${
+                        isPageActive ? 'text-silver' : 'text-muted'
+                      }`}
                     >
                       NEXT &rarr;
                     </button>

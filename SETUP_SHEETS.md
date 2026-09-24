@@ -15,13 +15,19 @@ This repository is configured so you can manage your portfolio content, sections
 ### Tab 1: `Projects`
 Add the following headers in row 1:
 
-| id | title | category | year | description | tags | metrics | demo_id | demo_config |
-|---|---|---|---|---|---|---|---|---|
-| 01 | AUTONOMOUS REASONING SWARM | AGENTIC ARCHITECTURE | 2026 | A multi-agent cognitive architecture... | MULTI-AGENT, TOOL EXECUTION | 99.4% EXECUTION COMPLETION | spawn-window | {"title": "SWARM_ALPHA", "spawnX": 25, "spawnY": 15, "pingMs": 32} |
-| 02 | AGENT MEMORY GRAPH ENGINE | KNOWLEDGE & RETRIEVAL | 2025 | Persistent episodic and semantic memory pipeline... | GRAPH RAG, EPISODIC MEMORY | <45MS RETRIEVAL | | |
+| id | title | category | year | page_title | description | tags | metrics | demo_id | demo_config |
+|---|---|---|---|---|---|---|---|---|---|
+| 01 | AUTONOMOUS REASONING SWARM | AGENTIC ARCHITECTURE | 2026 | ARCHITECTURE & DECOMPOSITION | A multi-agent cognitive architecture... | MULTI-AGENT, TOOL EXECUTION | 99.4% EXECUTION COMPLETION | spawn-window | {"title": "SWARM_ALPHA", "spawnX": 25, "spawnY": 15, "pingMs": 32} |
+| 01 | | | | RECOVERY PROTOCOLS | Fault-tolerant consensus protocols allowing autonomous subagents... | FAULT TOLERANCE, STATE RECOVERY | SUB-12MS RECOVERY | | |
+| 02 | AGENT MEMORY GRAPH ENGINE | KNOWLEDGE & RETRIEVAL | 2025 | | Persistent episodic and semantic memory pipeline... | GRAPH RAG, EPISODIC MEMORY | <45MS RETRIEVAL | | |
 
 *Notes:*
-- **Adding/removing sections:** Just add or remove rows! The site will automatically update the number of project sections, adjust the counter indicators (e.g., `[ 01 / 05 ]`), and teach the Floating CLI how to navigate to the new section.
+- **Multi-Page Systems:** To create multiple swipeable pages inside a single system, simply add multiple rows with the **same `id`** (e.g. two rows both having `id: 01`).
+  - The first row sets the overall Project `title`, `category`, and `year`.
+  - Each row defines its own `description`, `tags`, `metrics`, and optional `demo_id`.
+  - The Floating CLI will automatically detect the multiple pages and type `cd ./page-02`, `cd ../page-01` as you swipe horizontally!
+  - You can optionally specify a `page_title` (e.g. `ARCHITECTURE`, `METRICS`) which will be displayed in brackets `[ PAGE_TITLE ]` above that page's description.
+- **Adding/removing sections:** Just add or remove different IDs! The site will automatically update the number of project sections, adjust the counter indicators (e.g., `[ 01 / 05 ]`), and teach the Floating CLI how to navigate to the new section.
 - **`tags`:** Separate multiple tags with commas.
 - **`demo_id`:** The identifier of the JavaScript demo registered in `src/demos/DemoRegistry.jsx`.
 - **`demo_config`:** A JSON string of arguments/props passed directly into your demo function or component.

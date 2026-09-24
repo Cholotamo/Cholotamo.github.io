@@ -62,36 +62,50 @@ export async function fetchProjects() {
     return DEFAULT_PROJECTS;
   }
 
-  const projects = rawData
-    .map((raw, idx) => {
-      const row = normalizeRow(raw);
-      if (!row.title && !row.id) return null;
+  const projectMap = new Map();
 
-      const rawId = row.id || String(idx + 1);
-      const formattedId = String(rawId).padStart(2, '0');
+  rawData.forEach((raw, idx) => {
+    const row = normalizeRow(raw);
+    if (!row.title && !row.id && !row.description) return;
 
-      const tags = row.tags
-        ? row.tags
-            .split(',')
-            .map((t) => t.trim())
-            .filter(Boolean)
-        : [];
+    const rawId = row.id || String(idx + 1);
+    const formattedId = String(rawId).padStart(2, '0');
 
-      return {
+    const tags = row.tags
+      ? row.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [];
+
+    const pageData = {
+      pageTitle: row.pagetitle || row.pagesubtitle || '',
+      description: row.description || '',
+      tags,
+      metrics: row.metrics || '',
+      link: row.link || '#',
+      demoId: row.demoid || '',
+      demoConfig: row.democonfig || '',
+    };
+
+    if (!projectMap.has(formattedId)) {
+      projectMap.set(formattedId, {
         id: formattedId,
         title: row.title || `PROJECT ${formattedId}`,
         category: row.category || 'SYSTEM APPLICATION',
         year: row.year || String(new Date().getFullYear()),
-        description: row.description || '',
-        tags,
-        metrics: row.metrics || '',
-        link: row.link || '#',
-        demoId: row.demoid || '',
-        demoConfig: row.democonfig || '',
-      };
-    })
-    .filter(Boolean);
+        pages: [pageData],
+      });
+    } else {
+      const existing = projectMap.get(formattedId);
+      if (!existing.title && row.title) existing.title = row.title;
+      if (!existing.category && row.category) existing.category = row.category;
+      if (!existing.year && row.year) existing.year = row.year;
+      existing.pages.push(pageData);
+    }
+  });
 
+  const projects = Array.from(projectMap.values());
   return projects.length > 0 ? projects : DEFAULT_PROJECTS;
 }
 

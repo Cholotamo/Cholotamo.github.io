@@ -15,6 +15,7 @@ const DEFAULT_CORE_NAMES = ['core-01', 'core-02', 'core-03'];
 export default function FloatingCLI({
   containerRef,
   horizontalContainerRef,
+  horizontalNames,
   activeSection,
   sectionNames = DEFAULT_SECTION_NAMES,
   coreNames = DEFAULT_CORE_NAMES,
@@ -25,7 +26,7 @@ export default function FloatingCLI({
   const submitTimeoutRef = useRef(null);
   const isSubmittingRef = useRef(false);
 
-  // Keep a ref for activeSection so horizontal listeners do not re-bind on vertical scroll
+  // Keep a ref for activeSection so internal callbacks have latest value
   const activeSectionRef = useRef(activeSection);
   useEffect(() => {
     activeSectionRef.current = activeSection;
@@ -193,12 +194,21 @@ export default function FloatingCLI({
     };
   }, [containerRef, sectionNames]);
 
-  // Horizontal scroll effect (core competencies on mobile)
+  // Horizontal scroll effect (core competencies or in-system pages)
   useEffect(() => {
-    const hContainer = horizontalContainerRef?.current;
+    const hContainer =
+      horizontalContainerRef && 'current' in horizontalContainerRef
+        ? horizontalContainerRef.current
+        : horizontalContainerRef;
     if (!hContainer) return;
 
-    const getActiveCoreIndex = (scrollX) => {
+    const names =
+      Array.isArray(horizontalNames) && horizontalNames.length > 0
+        ? horizontalNames
+        : coreNames;
+    if (!names || names.length < 2) return;
+
+    const getActiveIndex = (scrollX) => {
       const children = hContainer.children;
       if (!children || children.length === 0) return 0;
       const vw = hContainer.clientWidth || window.innerWidth;
@@ -213,12 +223,11 @@ export default function FloatingCLI({
       return 0;
     };
 
-    horizontalAnchoredIndexRef.current = getActiveCoreIndex(hContainer.scrollLeft);
+    horizontalAnchoredIndexRef.current = getActiveIndex(hContainer.scrollLeft);
 
     let rafId;
     const handleHorizontalScrollUpdate = () => {
       if (isSubmittingRef.current) return;
-      if (activeSectionRef.current !== 'expertise') return;
 
       const scrollX = hContainer.scrollLeft;
       const vw = hContainer.clientWidth || window.innerWidth;
@@ -240,7 +249,7 @@ export default function FloatingCLI({
       }
 
       if (!activeBoundary) {
-        horizontalAnchoredIndexRef.current = getActiveCoreIndex(scrollX);
+        horizontalAnchoredIndexRef.current = getActiveIndex(scrollX);
         setDisplay((prev) =>
           prev.text !== '' && !prev.submitAnim ? { text: '', submitAnim: false } : prev
         );
@@ -251,7 +260,7 @@ export default function FloatingCLI({
       const isMovingRight = horizontalAnchoredIndexRef.current < k;
 
       if (isMovingRight) {
-        const targetName = coreNames[k] || `core-${k}`;
+        const targetName = names[k] || `item-${k}`;
         const commandStr = `cd ./${targetName}`;
 
         if (Math.abs(scrollX - end) <= snapThreshold) {
@@ -285,7 +294,7 @@ export default function FloatingCLI({
           return prev;
         });
       } else {
-        const targetName = coreNames[k - 1] || `core-${k - 1}`;
+        const targetName = names[k - 1] || `item-${k - 1}`;
         const commandStr = `cd ../${targetName}`;
 
         if (Math.abs(scrollX - start) <= snapThreshold) {
@@ -332,7 +341,7 @@ export default function FloatingCLI({
       hContainer.removeEventListener('scroll', onHScroll);
       cancelAnimationFrame(rafId);
     };
-  }, [horizontalContainerRef, coreNames]);
+  }, [horizontalContainerRef, horizontalNames, coreNames]);
 
   if (!display.text && !display.submitAnim) return null;
 

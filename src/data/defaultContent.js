@@ -21,52 +21,82 @@ export const DEFAULT_PROJECTS = [
     title: 'AUTONOMOUS REASONING SWARM',
     category: 'AGENTIC ARCHITECTURE',
     year: '2026',
-    description:
-      'A multi-agent cognitive architecture featuring decentralized consensus, dynamic task decomposition, and self-correcting tool-use loops.',
-    tags: ['MULTI-AGENT', 'TOOL EXECUTION', 'STATE SYNCHRONIZATION'],
-    metrics: '99.4% EXECUTION COMPLETION | ZERO RECURSION TRAPS',
-    link: '#',
-    demoId: 'spawn-window',
-    demoConfig: '{"title": "SWARM_NODE_A", "spawnX": 18, "spawnY": 12, "pingMs": 42}',
+    pages: [
+      {
+        pageTitle: 'ARCHITECTURE & DECOMPOSITION',
+        description:
+          'A multi-agent cognitive architecture featuring decentralized consensus, dynamic task decomposition, and self-correcting tool-use loops.',
+        tags: ['MULTI-AGENT', 'TOOL EXECUTION', 'STATE SYNCHRONIZATION'],
+        metrics: '99.4% EXECUTION COMPLETION | ZERO RECURSION TRAPS',
+        link: '#',
+        demoId: 'spawn-window',
+        demoConfig: '{"title": "SWARM_NODE_A", "spawnX": 18, "spawnY": 12, "pingMs": 42}',
+      },
+      {
+        pageTitle: 'CONSENSUS & RECOVERY PROTOCOLS',
+        description:
+          'Fault-tolerant consensus protocols allowing autonomous subagents to re-route failed executions and synchronize distributed tool states without human intervention.',
+        tags: ['FAULT TOLERANCE', 'STATE RECOVERY', 'SUBAGENT MESH'],
+        metrics: 'SUB-12MS RECOVERY | ZERO DATA LOSS',
+        link: '#',
+        demoId: '',
+        demoConfig: '',
+      },
+    ],
   },
   {
     id: '02',
     title: 'AGENT MEMORY GRAPH ENGINE',
     category: 'KNOWLEDGE & RETRIEVAL',
     year: '2025',
-    description:
-      'Persistent episodic and semantic memory pipeline for long-horizon agent execution, backed by graph traversal and vector indexing.',
-    tags: ['GRAPH RAG', 'EPISODIC MEMORY', 'LATENCY OPTIMIZATION'],
-    metrics: '<45MS RETRIEVAL | 10M+ TRACE TRAVERSAL',
-    link: '#',
-    demoId: '',
-    demoConfig: '',
+    pages: [
+      {
+        pageTitle: '',
+        description:
+          'Persistent episodic and semantic memory pipeline for long-horizon agent execution, backed by graph traversal and vector indexing.',
+        tags: ['GRAPH RAG', 'EPISODIC MEMORY', 'LATENCY OPTIMIZATION'],
+        metrics: '<45MS RETRIEVAL | 10M+ TRACE TRAVERSAL',
+        link: '#',
+        demoId: '',
+        demoConfig: '',
+      },
+    ],
   },
   {
     id: '03',
     title: 'REAL-TIME MULTIMODAL COPILOT',
     category: 'STREAMING & INFERENCE',
     year: '2025',
-    description:
-      'Sub-200ms latency voice and visual reasoning pipeline utilizing bidirectional streaming sockets and speculative action planning.',
-    tags: ['STREAMING API', 'VOICE/VISION', 'SPECULATIVE EXECUTION'],
-    metrics: '180MS TIME-TO-FIRST-ACTION | DUPLEX AUDIO',
-    link: '#',
-    demoId: '',
-    demoConfig: '',
+    pages: [
+      {
+        pageTitle: '',
+        description:
+          'Sub-200ms latency voice and visual reasoning pipeline utilizing bidirectional streaming sockets and speculative action planning.',
+        tags: ['STREAMING API', 'VOICE/VISION', 'SPECULATIVE EXECUTION'],
+        metrics: '180MS TIME-TO-FIRST-ACTION | DUPLEX AUDIO',
+        link: '#',
+        demoId: '',
+        demoConfig: '',
+      },
+    ],
   },
   {
     id: '04',
     title: 'AGENT EVALUATION HARNESS',
     category: 'BENCHMARKING & RELIABILITY',
     year: '2024',
-    description:
-      'Deterministic sandbox environment for stress-testing agent robustness against prompt injection, loop traps, and tool hallucinations.',
-    tags: ['EVALUATION', 'SANDBOXING', 'SAFETY GUARDS'],
-    metrics: '5,000+ ADVERSARIAL TRAJECTORIES TESTED',
-    link: '#',
-    demoId: '',
-    demoConfig: '',
+    pages: [
+      {
+        pageTitle: '',
+        description:
+          'Deterministic sandbox environment for stress-testing agent robustness against prompt injection, loop traps, and tool hallucinations.',
+        tags: ['EVALUATION', 'SANDBOXING', 'SAFETY GUARDS'],
+        metrics: '5,000+ ADVERSARIAL TRAJECTORIES TESTED',
+        link: '#',
+        demoId: '',
+        demoConfig: '',
+      },
+    ],
   },
 ];
 

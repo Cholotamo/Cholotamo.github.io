@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import FloatingCLI from './components/FloatingCLI';
 import HeroSection from './components/HeroSection';
 import ProjectSection from './components/ProjectSection';
@@ -27,6 +27,21 @@ export default function App() {
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef(null);
 
+  // Map of project id -> horizontal scroll container DOM element
+  const [projectContainers, setProjectContainers] = useState({});
+
+  const handleRegisterProjectContainer = useCallback((id, el) => {
+    setProjectContainers((prev) => {
+      if (prev[id] === el) return prev;
+      if (!el) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      return { ...prev, [id]: el };
+    });
+  }, []);
+
   const handleHover = () => setIsHovering(true);
   const handleLeave = () => setIsHovering(false);
 
@@ -43,6 +58,30 @@ export default function App() {
   const coreNames = useMemo(() => {
     return expertise.map((_, idx) => `core-0${idx + 1}`);
   }, [expertise]);
+
+  // Determine which horizontal container and page names are currently active
+  const activeHorizontalContext = useMemo(() => {
+    if (activeSection === 'expertise') {
+      return {
+        container: focusContainerRef.current,
+        names: coreNames,
+      };
+    }
+
+    if (activeSection.startsWith('system-')) {
+      const projId = activeSection.replace('system-', '');
+      const proj = projects.find((p) => p.id === projId);
+      const containerEl = projectContainers[projId];
+      if (containerEl && proj?.pages?.length > 1) {
+        return {
+          container: containerEl,
+          names: proj.pages.map((_, i) => `page-0${i + 1}`),
+        };
+      }
+    }
+
+    return { container: null, names: [] };
+  }, [activeSection, coreNames, projects, projectContainers]);
 
   // Load dynamic data from Google Sheets (or fallback)
   useEffect(() => {
@@ -136,7 +175,8 @@ export default function App() {
     >
       <FloatingCLI
         containerRef={containerRef}
-        horizontalContainerRef={focusContainerRef}
+        horizontalContainerRef={activeHorizontalContext.container}
+        horizontalNames={activeHorizontalContext.names}
         activeSection={activeSection}
         sectionNames={sectionNames}
         coreNames={coreNames}
@@ -162,6 +202,7 @@ export default function App() {
           isHovering={isHovering}
           handleHover={handleHover}
           handleLeave={handleLeave}
+          onRegisterContainer={handleRegisterProjectContainer}
         />
       ))}
 

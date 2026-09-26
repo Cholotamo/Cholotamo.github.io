@@ -144,7 +144,11 @@ export async function fetchSiteInfo() {
     return DEFAULT_SITE_INFO;
   }
 
-  const result = { ...DEFAULT_SITE_INFO };
+  // Deep clone socialLinks to prevent mutating the global fallback object
+  const result = {
+    ...DEFAULT_SITE_INFO,
+    socialLinks: DEFAULT_SITE_INFO.socialLinks.map((link) => ({ ...link })),
+  };
 
   // Check if it's a key-value pair sheet (Column 'key', Column 'value')
   const firstRow = normalizeRow(rawData[0]);
@@ -164,17 +168,25 @@ export async function fetchSiteInfo() {
       else if (k === 'footerleft') result.footerTextLeft = v;
       else if (k === 'footerright') result.footerTextRight = v;
       else if (k === 'email') {
-        const found = result.socialLinks.find((l) => l.label.includes('EMAIL'));
-        if (found) found.url = v.startsWith('mailto:') ? v : `mailto:${v}`;
+        if (result.socialLinks[0]) {
+          result.socialLinks[0].label = 'EMAIL →';
+          result.socialLinks[0].url = v.startsWith('mailto:') ? v : `mailto:${v}`;
+        }
       } else if (k === 'github') {
-        const found = result.socialLinks.find((l) => l.label.includes('GITHUB'));
-        if (found) found.url = v;
+        if (result.socialLinks[1]) {
+          result.socialLinks[1].label = 'GITHUB →';
+          result.socialLinks[1].url = v;
+        }
       } else if (k === 'twitter' || k === 'x') {
-        const found = result.socialLinks.find((l) => l.label.includes('X') || l.label.includes('TWITTER'));
-        if (found) found.url = v;
+        if (result.socialLinks[2]) {
+          result.socialLinks[2].label = 'X | TWITTER →';
+          result.socialLinks[2].url = v;
+        }
       } else if (k === 'linkedin') {
-        const found = result.socialLinks.find((l) => l.label.includes('LINKEDIN'));
-        if (found) found.url = v;
+        if (result.socialLinks[3]) {
+          result.socialLinks[3].label = 'LINKEDIN →';
+          result.socialLinks[3].url = v;
+        }
       }
     }
   }

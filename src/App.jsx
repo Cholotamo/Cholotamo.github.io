@@ -10,6 +10,7 @@ import {
   DEFAULT_SITE_INFO,
 } from './data/defaultContent';
 import { fetchAllPortfolioData } from './services/sheetsService';
+import { FallbackContext } from './contexts/FallbackContext';
 
 export default function App() {
   const containerRef = useRef(null);
@@ -19,6 +20,8 @@ export default function App() {
   const [siteInfo, setSiteInfo] = useState(DEFAULT_SITE_INFO);
   const [projects, setProjects] = useState(DEFAULT_PROJECTS);
   const [expertise, setExpertise] = useState(DEFAULT_EXPERTISE);
+
+  const isFallback = projects === DEFAULT_PROJECTS;
 
   const [activeSection, setActiveSection] = useState('hero');
   const [activeFocusIndex, setActiveFocusIndex] = useState(0);
@@ -166,68 +169,70 @@ export default function App() {
   }, [projects.length, expertise.length]);
 
   return (
-    <div
-      ref={containerRef}
-      onScroll={handleScroll}
-      className={`scroll-container h-[100dvh] w-full overflow-y-auto snap-y snap-mandatory bg-background text-muted ${
-        isScrolling ? 'is-scrolling' : ''
-      }`}
-    >
-      <FloatingCLI
-        containerRef={containerRef}
-        horizontalContainerRef={activeHorizontalContext.container}
-        horizontalNames={activeHorizontalContext.names}
-        activeSection={activeSection}
-        sectionNames={sectionNames}
-        coreNames={coreNames}
-      />
+    <FallbackContext.Provider value={isFallback}>
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className={`scroll-container h-[100dvh] w-full overflow-y-auto snap-y snap-mandatory bg-background text-muted ${
+          isScrolling ? 'is-scrolling' : ''
+        }`}
+      >
+        <FloatingCLI
+          containerRef={containerRef}
+          horizontalContainerRef={activeHorizontalContext.container}
+          horizontalNames={activeHorizontalContext.names}
+          activeSection={activeSection}
+          sectionNames={sectionNames}
+          coreNames={coreNames}
+        />
 
-      {/* 01. Hero Section */}
-      <HeroSection
-        siteInfo={siteInfo}
-        activeSection={activeSection}
-        isHovering={isHovering}
-        handleHover={handleHover}
-        handleLeave={handleLeave}
-      />
-
-      {/* 02 - N. Dedicated Project Sections (Dynamically Mapped) */}
-      {projects.map((project, idx) => (
-        <ProjectSection
-          key={project.id}
-          project={project}
-          index={idx}
-          totalProjects={projects.length}
+        {/* 01. Hero Section */}
+        <HeroSection
+          siteInfo={siteInfo}
           activeSection={activeSection}
           isHovering={isHovering}
           handleHover={handleHover}
           handleLeave={handleLeave}
-          onRegisterContainer={handleRegisterProjectContainer}
         />
-      ))}
 
-      {/* Focus Areas Section */}
-      <FocusSection
-        expertise={expertise}
-        activeSection={activeSection}
-        activeFocusIndex={activeFocusIndex}
-        isMobile={isMobile}
-        isHovering={isHovering}
-        handleHover={handleHover}
-        handleLeave={handleLeave}
-        focusContainerRef={focusContainerRef}
-        cardsRef={cardsRef}
-        scrollToCompetency={scrollToCompetency}
-      />
+        {/* 02 - N. Dedicated Project Sections (Dynamically Mapped) */}
+        {projects.map((project, idx) => (
+          <ProjectSection
+            key={project.id}
+            project={project}
+            index={idx}
+            totalProjects={projects.length}
+            activeSection={activeSection}
+            isHovering={isHovering}
+            handleHover={handleHover}
+            handleLeave={handleLeave}
+            onRegisterContainer={handleRegisterProjectContainer}
+          />
+        ))}
 
-      {/* Contact & Transmission Section with Footer */}
-      <ContactSection
-        siteInfo={siteInfo}
-        activeSection={activeSection}
-        isHovering={isHovering}
-        handleHover={handleHover}
-        handleLeave={handleLeave}
-      />
-    </div>
+        {/* Focus Areas Section */}
+        <FocusSection
+          expertise={expertise}
+          activeSection={activeSection}
+          activeFocusIndex={activeFocusIndex}
+          isMobile={isMobile}
+          isHovering={isHovering}
+          handleHover={handleHover}
+          handleLeave={handleLeave}
+          focusContainerRef={focusContainerRef}
+          cardsRef={cardsRef}
+          scrollToCompetency={scrollToCompetency}
+        />
+
+        {/* Contact & Transmission Section with Footer */}
+        <ContactSection
+          siteInfo={siteInfo}
+          activeSection={activeSection}
+          isHovering={isHovering}
+          handleHover={handleHover}
+          handleLeave={handleLeave}
+        />
+      </div>
+    </FallbackContext.Provider>
   );
 }

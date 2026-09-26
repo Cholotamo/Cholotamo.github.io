@@ -14,11 +14,14 @@
 export const SHEETS_CONFIG = {
   // Direct CSV URLs published from Google Sheets:
   projectsCsvUrl:
-    import.meta.env.VITE_SHEETS_PROJECTS_CSV_URL || '',
+    import.meta.env.VITE_SHEETS_PROJECTS_CSV_URL ||
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6FLVlvBWLd-Knv1AS6thRGKCgTBl4KKnWb0zdjKhYoFs-8UNh6DpdgreJD3tATXWQ1PSpBd_-myrm/pub?gid=0&single=true&output=csv',
   expertiseCsvUrl:
-    import.meta.env.VITE_SHEETS_EXPERTISE_CSV_URL || '',
+    import.meta.env.VITE_SHEETS_EXPERTISE_CSV_URL ||
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6FLVlvBWLd-Knv1AS6thRGKCgTBl4KKnWb0zdjKhYoFs-8UNh6DpdgreJD3tATXWQ1PSpBd_-myrm/pub?gid=101&single=true&output=csv',
   siteInfoCsvUrl:
-    import.meta.env.VITE_SHEETS_SITEINFO_CSV_URL || '',
+    import.meta.env.VITE_SHEETS_SITEINFO_CSV_URL ||
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6FLVlvBWLd-Knv1AS6thRGKCgTBl4KKnWb0zdjKhYoFs-8UNh6DpdgreJD3tATXWQ1PSpBd_-myrm/pub?gid=102&single=true&output=csv',
 
   // Poll/revalidation interval in milliseconds (optional, 0 disables auto-polling):
   pollIntervalMs: 0,

@@ -17,7 +17,6 @@ export default function ContactSection({
   const links = siteInfo?.socialLinks || [
     { label: 'EMAIL →', url: 'mailto:contact@example.com' },
     { label: 'GITHUB →', url: 'https://github.com' },
-    { label: 'X | TWITTER →', url: 'https://x.com' },
     { label: 'LINKEDIN →', url: 'https://linkedin.com' },
   ];
   const footerLeft = siteInfo?.footerTextLeft || 'ALL PROTOCOLS RESERVED';

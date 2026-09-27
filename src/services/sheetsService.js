@@ -144,15 +144,16 @@ export async function fetchSiteInfo() {
     return DEFAULT_SITE_INFO;
   }
 
-  // Deep clone socialLinks to prevent mutating the global fallback object
   const result = {
     ...DEFAULT_SITE_INFO,
-    socialLinks: DEFAULT_SITE_INFO.socialLinks.map((link) => ({ ...link })),
+    socialLinks: [],
   };
 
   // Check if it's a key-value pair sheet (Column 'key', Column 'value')
   const firstRow = normalizeRow(rawData[0]);
   if ('key' in firstRow && 'value' in firstRow) {
+    const sheetSocialLinks = [];
+
     for (const raw of rawData) {
       const row = normalizeRow(raw);
       const k = row.key;
@@ -168,27 +169,35 @@ export async function fetchSiteInfo() {
       else if (k === 'footerleft') result.footerTextLeft = v;
       else if (k === 'footerright') result.footerTextRight = v;
       else if (k === 'email') {
-        if (result.socialLinks[0]) {
-          result.socialLinks[0].label = 'EMAIL →';
-          result.socialLinks[0].url = v.startsWith('mailto:') ? v : `mailto:${v}`;
-        }
+        sheetSocialLinks.push({
+          label: 'EMAIL →',
+          url: v.startsWith('mailto:') ? v : `mailto:${v}`,
+        });
       } else if (k === 'github') {
-        if (result.socialLinks[1]) {
-          result.socialLinks[1].label = 'GITHUB →';
-          result.socialLinks[1].url = v;
-        }
+        sheetSocialLinks.push({
+          label: 'GITHUB →',
+          url: v,
+        });
       } else if (k === 'twitter' || k === 'x') {
-        if (result.socialLinks[2]) {
-          result.socialLinks[2].label = 'X | TWITTER →';
-          result.socialLinks[2].url = v;
-        }
+        sheetSocialLinks.push({
+          label: 'X | TWITTER →',
+          url: v,
+        });
       } else if (k === 'linkedin') {
-        if (result.socialLinks[3]) {
-          result.socialLinks[3].label = 'LINKEDIN →';
-          result.socialLinks[3].url = v;
-        }
+        sheetSocialLinks.push({
+          label: 'LINKEDIN →',
+          url: v,
+        });
+      } else if (k.endsWith('link') || k.startsWith('social') || v.startsWith('http://') || v.startsWith('https://')) {
+        const label = k.replace(/link$|^social/, '').toUpperCase().trim();
+        sheetSocialLinks.push({
+          label: `${label || 'LINK'} →`,
+          url: v,
+        });
       }
     }
+
+    result.socialLinks = sheetSocialLinks;
   }
 
   return result;

@@ -8,7 +8,6 @@ export const DEFAULT_SITE_INFO = {
   socialLinks: [
     { label: '10101 →', url: 'mailto:contact@example.com' },
     { label: '101010 →', url: 'https://github.com' },
-    { label: '10101010101 →', url: 'https://x.com' },
     { label: '10101010 →', url: 'https://linkedin.com' },
   ],
   footerTextLeft: '101 101010101 10101010',

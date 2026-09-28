@@ -215,14 +215,14 @@ export default function ProjectSection({
 
               {/* Metric & In-system Navigation Controls */}
               <div
-                className={`pt-6 border-t border-border flex items-center justify-between text-xs tracking-widest uppercase transition-colors duration-300 ${
+                className={`pt-6 border-t border-border flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs tracking-widest uppercase transition-colors duration-300 ${
                   isPageActive ? 'text-silver' : 'text-muted'
                 }`}
               >
-                <span>
+                <span className="break-words">
                   {page.metrics ? (
                     <SplitText
-                      text={`METRIC: ${page.metrics}`}
+                      text={page.metrics}
                       onHover={handleHover}
                       onLeave={handleLeave}
                     />
@@ -232,7 +232,7 @@ export default function ProjectSection({
                 </span>
 
                 {rawPages.length > 1 && (
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 whitespace-nowrap">
                     <button
                       type="button"
                       onClick={() => scrollToPage(Math.max(0, pIdx - 1))}

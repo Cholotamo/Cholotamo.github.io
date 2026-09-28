@@ -119,7 +119,7 @@ export default function FocusSection({
 
               {/* Mobile bottom indicator & navigation */}
               <div
-                className={`mt-10 pt-4 border-t border-border flex md:hidden items-center justify-between text-xs tracking-widest uppercase transition-colors duration-300 ${
+                className={`mt-10 pt-4 border-t border-border flex md:hidden items-center justify-between text-xs tracking-widest uppercase whitespace-nowrap gap-4 transition-colors duration-300 ${
                   isItemActive ? 'text-silver' : 'text-muted'
                 }`}
               >

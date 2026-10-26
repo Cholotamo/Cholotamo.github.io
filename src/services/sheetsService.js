@@ -28,7 +28,8 @@ async function fetchAndParseCsv(url) {
   }
 
   try {
-    const response = await fetch(url);
+    const cacheBusterUrl = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+    const response = await fetch(cacheBusterUrl, { cache: 'no-store' });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status} ${response.statusText}`);
     }

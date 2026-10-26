@@ -119,6 +119,10 @@ export const DEMO_REGISTRY = {
 ```
 In your Google Sheet `Projects` tab, set `demo_id` to `my-demo` and `demo_config` to `{"spawnX": 40, "spawnY": 10, "speed": 2}`.
 
+### Registered Demos Available in the Sheet:
+- **`spawn-window`**: Interactive terminal window demo. Config: `{"title": "...", "spawnX": 20, "spawnY": 10, "pingMs": 40}`
+- **`market-analysis`** (or `market-analysis-pipeline`): Regional Renewables Market Analysis walkthrough. Config (optional): `{"height": 640, "title": "REGIONAL MARKET ANALYSIS"}`
+
 ### Adding a Vanilla JavaScript Demo:
 In `src/demos/DemoRegistry.jsx`:
 ```javascript

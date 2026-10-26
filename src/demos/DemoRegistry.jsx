@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import SpawnWindowDemo from './SpawnWindowDemo';
+import MarketAnalysisDemo from './MarketAnalysisDemo';
 
 /**
  * Demo Registry maps a string ID (specified in Google Sheet `demo_id` column)
@@ -9,6 +10,12 @@ import SpawnWindowDemo from './SpawnWindowDemo';
  */
 export const DEMO_REGISTRY = {
   'spawn-window': SpawnWindowDemo,
+  'spawn_window': SpawnWindowDemo,
+  'market-analysis': MarketAnalysisDemo,
+  'market_analysis': MarketAnalysisDemo,
+  'market analysis': MarketAnalysisDemo,
+  'market-analysis-pipeline': MarketAnalysisDemo,
+  'regional-market-analysis': MarketAnalysisDemo,
   
   // Example of a pure vanilla JavaScript demo registering directly:
   'vanilla-canvas': {
@@ -72,7 +79,11 @@ export function DemoRenderer({ demoId, demoConfig }) {
     config = demoConfig;
   }
 
-  const DemoEntry = DEMO_REGISTRY[demoId];
+  const normalizedKey = (demoId || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-');
+  const DemoEntry = DEMO_REGISTRY[demoId] || DEMO_REGISTRY[normalizedKey];
 
   // If entry is vanilla JS runner:
   useEffect(() => {

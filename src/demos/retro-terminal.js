@@ -2,15 +2,16 @@
  * RetroTerminal - Modular Web Component (<retro-terminal>)
  * Features:
  * - 100% Shadow DOM encapsulation (no host CSS leak, no terminal CSS pollution)
- * - Clean CSS borders matching the viewer grid style (1px solid #444444)
- * - Monospace typography matching the viewer ("Cascadia Code", "Consolas", etc.)
- * - Muted monochrome palette (#050505 bg, #b0b0b0 fg, #ffffff bright)
- * - Unhighlightable text (user-select: none)
+ * - Clean CSS borders matching portfolio cyberpunk grid style (1px solid #30271d)
+ * - Monospace typography matching the viewer ("JetBrains Mono", "Courier New", Consolas, monospace)
+ * - Bespoke espresso/bronze palette (#0a0806 bg, #120e0a header, #705a42 text, #d4bea7 bright)
+ * - Zero native HTML tooltips and zero box-shadows (per styleguide)
  * - Positioned absolutely so it scrolls naturally with document flow (users can scroll past it)
- * - Dual scroll-aware drag engine: supports both viewport/window and parent .scroll-container
+ * - Auto-scroll with CSS scroll-snap bypass: temporarily pauses snap-y during active drag
+ * - Proportional edge auto-scrolling with boundary awareness
  * - Slot-based content area: render embedded iframes, canvases, or fallback retro prompt
  * - Drag-shield overlay during pointer drags to prevent iframes from capturing mouse events
- * - Draggable header with boundary clamping and edge auto-scrolling
+ * - Safe lifecycle teardown: cancelable event prevents DOM race conditions with React reconciler
  * - Bracketed retro buttons: [_] (minimize), [+] (restore), [X] (close)
  */
 
@@ -38,6 +39,8 @@ export class RetroTerminal extends HTMLElement {
     this.maxDragTop = Infinity;
     this.autoScrollRAF = null;
     this._scrollTarget = null;
+    this._origSnapType = '';
+    this._origBehavior = '';
     this._onScroll = this.handleScroll.bind(this);
 
     this.render();
@@ -55,6 +58,10 @@ export class RetroTerminal extends HTMLElement {
       this.autoScrollRAF = null;
     }
     if (this._scrollTarget) {
+      if (this._scrollTarget !== window) {
+        this._scrollTarget.style.scrollSnapType = this._origSnapType || '';
+        this._scrollTarget.style.scrollBehavior = this._origBehavior || '';
+      }
       this._scrollTarget.removeEventListener('scroll', this._onScroll);
       this._scrollTarget = null;
     }
@@ -109,8 +116,8 @@ export class RetroTerminal extends HTMLElement {
           display: block;
           position: absolute;
           z-index: 1000;
-          font-family: "Cascadia Code", "Consolas", "IBM Plex Mono", "Courier New", monospace;
-          color: #b0b0b0;
+          font-family: "JetBrains Mono", "Courier New", Courier, Consolas, monospace;
+          color: #705a42;
           font-size: 13px;
           line-height: 1.2;
           user-select: none;
@@ -127,14 +134,14 @@ export class RetroTerminal extends HTMLElement {
           -webkit-user-select: none !important;
         }
 
-        /* Terminal Window Container */
+        /* Terminal Window Container - Strictly Espresso & Bronze */
         .terminal-window {
           position: relative;
-          background: #050505;
-          color: #b0b0b0;
+          background: #0a0806;
+          color: #705a42;
           display: flex;
           flex-direction: column;
-          border: 1px solid #444444;
+          border: 1px solid #30271d;
           overflow: hidden;
           width: ${this.terminalWidth};
           height: ${this.terminalHeight};
@@ -142,7 +149,6 @@ export class RetroTerminal extends HTMLElement {
           min-height: 180px;
           max-width: 96vw;
           max-height: 90vh;
-          box-shadow: 0 0 16px rgba(0,0,0,0.9) !important;
         }
 
         /* Minimized state */
@@ -160,16 +166,16 @@ export class RetroTerminal extends HTMLElement {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          background: #0e0e0e;
-          border-bottom: 1px solid #444444;
-          padding: 5px 12px;
+          background: #120e0a;
+          border-bottom: 1px solid #30271d;
+          padding: 6px 12px;
           cursor: move;
           user-select: none;
           flex-shrink: 0;
         }
 
         .box-title {
-          color: #ffffff;
+          color: #d4bea7;
           font-weight: 700;
           letter-spacing: 1px;
           font-size: 0.78rem;
@@ -189,7 +195,7 @@ export class RetroTerminal extends HTMLElement {
         .box-btn {
           background: transparent;
           border: none;
-          color: #b0b0b0;
+          color: #705a42;
           font-family: inherit;
           font-size: 13px;
           line-height: 1;
@@ -197,16 +203,17 @@ export class RetroTerminal extends HTMLElement {
           padding: 0 4px;
           margin: 0;
           user-select: none;
+          transition: background 0.1s, color 0.1s;
         }
 
         .box-btn:hover {
-          background: #e0e0e0;
-          color: #0a0a0a;
+          background: #1c1610;
+          color: #d4bea7;
         }
 
         .box-btn:active {
-          background: #ffffff;
-          color: #000000;
+          background: #30271d;
+          color: #f0e2d3;
         }
 
         /* ── Terminal Content Area ── */
@@ -218,7 +225,7 @@ export class RetroTerminal extends HTMLElement {
           display: flex;
           flex-direction: column;
           position: relative;
-          background: #050505;
+          background: #0a0806;
           overflow: hidden;
         }
 
@@ -265,14 +272,14 @@ export class RetroTerminal extends HTMLElement {
           height: 6px;
         }
         .terminal-scroll-area::-webkit-scrollbar-track {
-          background: #050505;
-          border-left: 1px solid #222222;
+          background: #0a0806;
+          border-left: 1px solid #30271d;
         }
         .terminal-scroll-area::-webkit-scrollbar-thumb {
-          background: #444444;
+          background: #30271d;
         }
         .terminal-scroll-area::-webkit-scrollbar-thumb:hover {
-          background: #606060;
+          background: #705a42;
         }
 
         /* Active Prompt Row (Fallback display) */
@@ -287,7 +294,7 @@ export class RetroTerminal extends HTMLElement {
         }
 
         .prompt-label {
-          color: #ffffff;
+          color: #9e8264;
           font-weight: 700;
           margin-right: 6px;
           flex-shrink: 0;
@@ -297,7 +304,7 @@ export class RetroTerminal extends HTMLElement {
         /* Blinking text cursor */
         .cursor {
           display: inline-block;
-          color: #ffffff;
+          color: #d4bea7;
           font-weight: 700;
           margin-left: 1px;
           animation: retro-cursor-blink 1s steps(1) infinite;
@@ -402,7 +409,7 @@ export class RetroTerminal extends HTMLElement {
     }
   }
 
-  /* ── Drag & Reposition Logic (Scroll-container Aware & Auto-scroll) ── */
+  /* ── Drag & Reposition Logic (Bypasses CSS Scroll Snap during drag) ── */
   handlePointerDown(e) {
     if (e.target.closest('.box-btn')) return;
 
@@ -421,6 +428,15 @@ export class RetroTerminal extends HTMLElement {
 
     const scrollTarget = this.getScrollTarget();
     this._scrollTarget = scrollTarget;
+
+    // Temporarily bypass CSS scroll snap on parent container during active drag
+    if (scrollTarget !== window) {
+      this._origSnapType = scrollTarget.style.scrollSnapType;
+      this._origBehavior = scrollTarget.style.scrollBehavior;
+      scrollTarget.style.scrollSnapType = 'none';
+      scrollTarget.style.scrollBehavior = 'auto';
+    }
+
     this.initialScrollX = scrollTarget === window ? window.scrollX : scrollTarget.scrollLeft;
     this.initialScrollY = scrollTarget === window ? window.scrollY : scrollTarget.scrollTop;
 
@@ -491,8 +507,11 @@ export class RetroTerminal extends HTMLElement {
       if (!this.isDragging) return;
 
       const scrollTarget = this._scrollTarget || this.getScrollTarget();
-      const edgeThreshold = 60;
-      const scrollSpeed = 14;
+      const edgeThreshold = 75;
+
+      const rect = scrollTarget === window
+        ? { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth }
+        : scrollTarget.getBoundingClientRect();
 
       const currentScrollY = scrollTarget === window ? window.scrollY : scrollTarget.scrollTop;
       const currentScrollX = scrollTarget === window ? window.scrollX : scrollTarget.scrollLeft;
@@ -503,45 +522,52 @@ export class RetroTerminal extends HTMLElement {
         ? Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
         : Math.max(0, scrollTarget.scrollWidth - scrollTarget.clientWidth);
 
-      if (this.lastClientY < edgeThreshold) {
-        // Dragging near top edge: scroll screen up
+      // Top edge detection
+      if (this.lastClientY < rect.top + edgeThreshold) {
+        const dist = Math.max(1, this.lastClientY - rect.top);
+        const speed = Math.round(Math.max(8, (1 - dist / edgeThreshold) * 24));
         if (currentScrollY > 0) {
           if (scrollTarget === window) {
-            window.scrollBy(0, -scrollSpeed);
+            window.scrollBy(0, -speed);
           } else {
-            scrollTarget.scrollTop = Math.max(0, scrollTarget.scrollTop - scrollSpeed);
+            scrollTarget.scrollTop = Math.max(0, scrollTarget.scrollTop - speed);
           }
           this.updateDragPosition();
         }
-      } else if (this.lastClientY > window.innerHeight - edgeThreshold) {
-        // Dragging near bottom edge: scroll screen down
+      } else if (this.lastClientY > rect.bottom - edgeThreshold) {
+        // Bottom edge detection
+        const dist = Math.max(1, rect.bottom - this.lastClientY);
+        const speed = Math.round(Math.max(8, (1 - dist / edgeThreshold) * 24));
         if (currentScrollY < maxScrollY) {
           if (scrollTarget === window) {
-            window.scrollBy(0, scrollSpeed);
+            window.scrollBy(0, speed);
           } else {
-            scrollTarget.scrollTop = Math.min(maxScrollY, scrollTarget.scrollTop + scrollSpeed);
+            scrollTarget.scrollTop = Math.min(maxScrollY, scrollTarget.scrollTop + speed);
           }
           this.updateDragPosition();
         }
       }
 
-      if (this.lastClientX < edgeThreshold) {
-        // Dragging near left edge: scroll screen left
+      // Horizontal edge detection (if applicable)
+      if (this.lastClientX < rect.left + edgeThreshold) {
+        const dist = Math.max(1, this.lastClientX - rect.left);
+        const speed = Math.round(Math.max(8, (1 - dist / edgeThreshold) * 24));
         if (currentScrollX > 0) {
           if (scrollTarget === window) {
-            window.scrollBy(-scrollSpeed, 0);
+            window.scrollBy(-speed, 0);
           } else {
-            scrollTarget.scrollLeft = Math.max(0, scrollTarget.scrollLeft - scrollSpeed);
+            scrollTarget.scrollLeft = Math.max(0, scrollTarget.scrollLeft - speed);
           }
           this.updateDragPosition();
         }
-      } else if (this.lastClientX > window.innerWidth - edgeThreshold) {
-        // Dragging near right edge: scroll screen right
+      } else if (this.lastClientX > rect.right - edgeThreshold) {
+        const dist = Math.max(1, rect.right - this.lastClientX);
+        const speed = Math.round(Math.max(8, (1 - dist / edgeThreshold) * 24));
         if (currentScrollX < maxScrollX) {
           if (scrollTarget === window) {
-            window.scrollBy(scrollSpeed, 0);
+            window.scrollBy(speed, 0);
           } else {
-            scrollTarget.scrollLeft = Math.min(maxScrollX, scrollTarget.scrollLeft + scrollSpeed);
+            scrollTarget.scrollLeft = Math.min(maxScrollX, scrollTarget.scrollLeft + speed);
           }
           this.updateDragPosition();
         }
@@ -561,9 +587,16 @@ export class RetroTerminal extends HTMLElement {
         cancelAnimationFrame(this.autoScrollRAF);
         this.autoScrollRAF = null;
       }
+
+      // Restore parent scroll snap properties
       if (this._scrollTarget) {
+        if (this._scrollTarget !== window) {
+          this._scrollTarget.style.scrollSnapType = this._origSnapType || '';
+          this._scrollTarget.style.scrollBehavior = this._origBehavior || '';
+        }
         this._scrollTarget.removeEventListener('scroll', this._onScroll);
       }
+
       try {
         this.dragHandle.releasePointerCapture(e.pointerId);
       } catch (_) {}
@@ -590,11 +623,17 @@ export class RetroTerminal extends HTMLElement {
   }
 
   closeTerminal() {
-    this.dispatchEvent(new CustomEvent('terminal-close', {
+    // Dispatch cancelable event. If a host framework (e.g. React Portal) cancels default,
+    // we let the framework cleanly unmount the element to prevent DOMException NotFoundError.
+    const evt = new CustomEvent('terminal-close', {
       bubbles: true,
       composed: true,
-    }));
-    this.remove();
+      cancelable: true,
+    });
+    const notHandled = this.dispatchEvent(evt);
+    if (notHandled) {
+      this.remove();
+    }
   }
 }
 

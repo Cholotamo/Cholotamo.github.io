@@ -54,7 +54,8 @@ export default function MarketAnalysisDemo({
     const termEl = terminalRef.current;
     if (!termEl) return;
 
-    const onClose = () => {
+    const onClose = (e) => {
+      e.preventDefault();
       setIsOpen(false);
     };
 

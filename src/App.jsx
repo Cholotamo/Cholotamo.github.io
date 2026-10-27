@@ -173,7 +173,7 @@ export default function App() {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className={`scroll-container h-[100dvh] w-full overflow-y-auto snap-y snap-mandatory bg-background text-muted ${
+        className={`scroll-container relative h-[100dvh] w-full overflow-y-auto snap-y snap-mandatory bg-background text-muted ${
           isScrolling ? 'is-scrolling' : ''
         }`}
       >

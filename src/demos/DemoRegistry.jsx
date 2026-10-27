@@ -16,6 +16,8 @@ export const DEMO_REGISTRY = {
   'market analysis': MarketAnalysisDemo,
   'market-analysis-pipeline': MarketAnalysisDemo,
   'regional-market-analysis': MarketAnalysisDemo,
+  'retro-terminal': MarketAnalysisDemo,
+  'retro_terminal': MarketAnalysisDemo,
   
   // Example of a pure vanilla JavaScript demo registering directly:
   'vanilla-canvas': {

@@ -121,7 +121,7 @@ In your Google Sheet `Projects` tab, set `demo_id` to `my-demo` and `demo_config
 
 ### Registered Demos Available in the Sheet:
 - **`spawn-window`**: Interactive terminal window demo. Config: `{"title": "...", "spawnX": 20, "spawnY": 10, "pingMs": 40}`
-- **`market-analysis`** (or `market-analysis-pipeline`, `retro-terminal`): Modular `<retro-terminal>` Web Component hosting the Regional Renewables Market Analysis walkthrough. Config (optional): `{"width": "820px", "height": "580px", "title": "REGIONAL MARKET ANALYSIS", "prompt": "pipeline_v2.6 >"}`
+- **`market-analysis`** (or `market-analysis-pipeline`, `terminal`, `retro-terminal`): Modular terminal Web Component hosting the Regional Renewables Market Analysis walkthrough. Config (optional): `{"width": "820px", "height": "580px", "title": "REGIONAL MARKET ANALYSIS", "prompt": "pipeline_v2.6 >"}`
 
 ### Adding a Vanilla JavaScript Demo:
 In `src/demos/DemoRegistry.jsx`:

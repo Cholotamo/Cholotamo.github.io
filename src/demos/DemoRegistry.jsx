@@ -16,6 +16,7 @@ export const DEMO_REGISTRY = {
   'market analysis': MarketAnalysisDemo,
   'market-analysis-pipeline': MarketAnalysisDemo,
   'regional-market-analysis': MarketAnalysisDemo,
+  'terminal': MarketAnalysisDemo,
   'retro-terminal': MarketAnalysisDemo,
   'retro_terminal': MarketAnalysisDemo,
   

@@ -81,10 +81,10 @@ export default function MarketAnalysisDemo({
           />
           <span>
             {isOpen
-              ? '[ RETRO TERMINAL ACTIVE :: FOCUS ]'
-              : `[ ▶ LAUNCH RETRO TERMINAL :: ${title} ]`}
+              ? '[ TERMINAL ACTIVE :: FOCUS ]'
+              : `[ ▶ LAUNCH TERMINAL :: ${title} ]`}
           </span>
-          <span className="text-muted text-[10px] ml-1">▸ &lt;retro-terminal&gt;</span>
+          <span className="text-muted text-[10px] ml-1">▸ TERMINAL</span>
         </button>
 
         {isOpen && (

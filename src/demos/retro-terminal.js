@@ -41,6 +41,7 @@ export class RetroTerminal extends HTMLElement {
     this._scrollTarget = null;
     this._origSnapType = '';
     this._origBehavior = '';
+    this._settleTimer = null;
     this._onScroll = this.handleScroll.bind(this);
 
     this.render();
@@ -56,6 +57,10 @@ export class RetroTerminal extends HTMLElement {
     if (this.autoScrollRAF) {
       cancelAnimationFrame(this.autoScrollRAF);
       this.autoScrollRAF = null;
+    }
+    if (this._settleTimer) {
+      clearTimeout(this._settleTimer);
+      this._settleTimer = null;
     }
     if (this._scrollTarget) {
       if (this._scrollTarget !== window) {
@@ -413,6 +418,11 @@ export class RetroTerminal extends HTMLElement {
   handlePointerDown(e) {
     if (e.target.closest('.box-btn')) return;
 
+    if (this._settleTimer) {
+      clearTimeout(this._settleTimer);
+      this._settleTimer = null;
+    }
+
     this.isDragging = true;
     if (this.dragShield) this.dragShield.classList.add('active');
 
@@ -588,19 +598,69 @@ export class RetroTerminal extends HTMLElement {
         this.autoScrollRAF = null;
       }
 
-      // Restore parent scroll snap properties
-      if (this._scrollTarget) {
-        if (this._scrollTarget !== window) {
-          this._scrollTarget.style.scrollSnapType = this._origSnapType || '';
-          this._scrollTarget.style.scrollBehavior = this._origBehavior || '';
-        }
-        this._scrollTarget.removeEventListener('scroll', this._onScroll);
-      }
-
       try {
         this.dragHandle.releasePointerCapture(e.pointerId);
       } catch (_) {}
+
+      const scrollTarget = this._scrollTarget;
+      if (scrollTarget && scrollTarget !== window) {
+        this.smoothSettleAndRestoreSnap(scrollTarget);
+      } else if (scrollTarget === window) {
+        window.removeEventListener('scroll', this._onScroll);
+      }
     }
+  }
+
+  getNearestSectionTop(scrollContainer) {
+    const sections = scrollContainer.querySelectorAll('section[data-section-id]');
+    if (!sections || sections.length === 0) return scrollContainer.scrollTop;
+
+    const currentCenterY = scrollContainer.scrollTop + scrollContainer.clientHeight / 2;
+    let nearestTop = scrollContainer.scrollTop;
+    let minDiff = Infinity;
+
+    for (let i = 0; i < sections.length; i++) {
+      const secCenter = sections[i].offsetTop + sections[i].offsetHeight / 2;
+      const diff = Math.abs(currentCenterY - secCenter);
+      if (diff < minDiff) {
+        minDiff = diff;
+        nearestTop = sections[i].offsetTop;
+      }
+    }
+    return nearestTop;
+  }
+
+  smoothSettleAndRestoreSnap(scrollTarget) {
+    const targetTop = this.getNearestSectionTop(scrollTarget);
+    const delta = Math.abs(scrollTarget.scrollTop - targetTop);
+
+    // If already aligned with the section snap point (< 15px), restore snap immediately
+    if (delta < 15) {
+      scrollTarget.style.scrollSnapType = this._origSnapType || '';
+      scrollTarget.style.scrollBehavior = this._origBehavior || '';
+      scrollTarget.removeEventListener('scroll', this._onScroll);
+      return;
+    }
+
+    // Smoothly glide to the target section
+    scrollTarget.scrollTo({ top: targetTop, behavior: 'smooth' });
+
+    let settled = false;
+    const onSettle = () => {
+      if (settled) return;
+      settled = true;
+      scrollTarget.removeEventListener('scrollend', onSettle);
+      if (this._settleTimer) {
+        clearTimeout(this._settleTimer);
+        this._settleTimer = null;
+      }
+      scrollTarget.style.scrollSnapType = this._origSnapType || '';
+      scrollTarget.style.scrollBehavior = this._origBehavior || '';
+      scrollTarget.removeEventListener('scroll', this._onScroll);
+    };
+
+    scrollTarget.addEventListener('scrollend', onSettle, { once: true });
+    this._settleTimer = setTimeout(onSettle, 500);
   }
 
   /* ── Window Controls ── */

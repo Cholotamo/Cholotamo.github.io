@@ -98,11 +98,11 @@ export default function MarketAnalysisDemo({
         )}
       </div>
 
-      {/* 2. Mounts <retro-terminal> directly into the scroll flow via React Portal */}
+      {/* 2. Mounts <market-analysis-terminal> directly into the scroll flow via React Portal */}
       {isOpen &&
         scrollContainer &&
         createPortal(
-          <retro-terminal
+          <market-analysis-terminal
             ref={terminalRef}
             window-title={title}
             prompt={prompt}
@@ -122,7 +122,7 @@ export default function MarketAnalysisDemo({
               allowFullScreen
               sandbox="allow-scripts allow-same-origin allow-popups"
             />
-          </retro-terminal>,
+          </market-analysis-terminal>,
           scrollContainer
         )}
     </>

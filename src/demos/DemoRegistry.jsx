@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import SpawnWindowDemo from './SpawnWindowDemo';
 import MarketAnalysisDemo from './MarketAnalysisDemo';
+import DungeonCrawlerDemo from './DungeonCrawlerDemo';
 
 /**
  * Demo Registry maps a string ID (specified in Google Sheet `demo_id` column)
@@ -19,6 +20,13 @@ export const DEMO_REGISTRY = {
   'terminal': MarketAnalysisDemo,
   'retro-terminal': MarketAnalysisDemo,
   'retro_terminal': MarketAnalysisDemo,
+  'dungeon-crawler': DungeonCrawlerDemo,
+  'dungeon_crawler': DungeonCrawlerDemo,
+  'dungeon-crawler-text': DungeonCrawlerDemo,
+  'dungeon_crawler_text': DungeonCrawlerDemo,
+  'generative-engine': DungeonCrawlerDemo,
+  'generative-evolution-engine': DungeonCrawlerDemo,
+  'evolution-engine': DungeonCrawlerDemo,
   
   // Example of a pure vanilla JavaScript demo registering directly:
   'vanilla-canvas': {

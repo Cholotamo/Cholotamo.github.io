@@ -1,0 +1,1535 @@
+/**
+ * DungeonTerminal - Modular Web Component (<dungeon-terminal>)
+ * Features:
+ * - 100% Shadow DOM encapsulation (no host CSS leak, no terminal CSS pollution)
+ * - Clean CSS borders matching the viewer grid style (1px solid #30271d)
+ * - Monospace typography matching the viewer ("Cascadia Code", "Consolas", etc.)
+ * - Strict 3-color palette (#0a0806 bg, #30271d muted, #705a42 active)
+ * - Square window dimensions (equal width and height)
+ * - Unhighlightable text (user-select: none)
+ * - Positioned absolutely so it scrolls naturally with document flow (users can scroll past it)
+ * - Draggable header with page-scroll aware pointer math
+ * - Static prompt display (user input disabled) with retro blinking cursor
+ */
+
+export class DungeonTerminal extends HTMLElement {
+  static highestZIndex = 1000;
+
+  static TERRAIN_GRID = [
+    ",,,,,,,,,##,^,^^^,^,^^^,^,^^^,^^",
+    ",,,,,,,,,##^,^^^,^,^~^,^,^^~,^,^",
+    ",,,,,,,,,#&,^^^,^,^~~,^,^^~~/,^^",
+    ",,//,,,,#&#^^^,^,^~~,^,^^^~/,^^^",
+    ",,,,,,,,&##,^,^,^~~,^,^,^~~/^,^,",
+    ",%%,,,,,###^,^,^~~,^,^,^,~/^,^,^",
+    ",%,,,,,###&#^,^~~,^,^,^,~~/,^,^,",
+    ",,,,,,,##&###^~~,^,^,^,^~/,^,^,^",
+    ",,,,,,,#&###&~~,^,^,^,^~~/^,^,^,",
+    ",//,,,#&###&~~#&###&###~/##&###&",
+    ",,,,,,&###&#~#&###&###~~/#&###&#",
+    ",,,,%%###&#~~&###&###&~/#&###&##",
+    ",,,,%###&##~&##%~%##&~~/&###&###",
+    ",,,,,##&##~~###~%~%&#~/&###&###&",
+    ",,,,,#&###~###&#~%~#~~/###&###&#",
+    ",,,,#&###&~##&###~%#~/###&###&##",
+    ",,//&###&#~~&###&##~~/##&###&###",
+    ",,,,###&###~###&###~/##&###&###&",
+    ",,,###&###&~~#&###~~/#&###&###&#",
+    ",,%%#&###&##~~###&~/#&###&###&##",
+    ",,%#&###&###&~~#&~~/&###&###&###",
+    ",,#&###&###&##~~~~#&###&###&###&",
+    ",,&###&###&###&~##&###&###&###&#",
+    ",,###&###&###&#~~&###&###&###&##",
+    "&###&###&###&###~###&###&###&###",
+    "///,,,####;~%;~%~~%;~%####,,,,//",
+    "///;;;####~%;~%;~%;~%;####;;;;//",
+    "///;;;####%;~%;~~;~%;~####;;;;//",
+    "~~~~;;;~~~~~~~~~~~~~~~~~~~;;;;~~",
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~",
+    "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+  ].join('');
+
+  static REGION_GRID = [
+    "55555555544111111111111111111111",
+    "55555555544111111111311111121111",
+    "55555555544111111113311111222111",
+    "55555555444111111133111111221111",
+    "55555555444111111331111112221111",
+    "56655555444111113311111112211111",
+    "56555554444411133111111122211111",
+    "55555554444441331111111122111111",
+    "55555554444443311111111222111111",
+    "55555544444433444444444224444444",
+    "55555544444434444444442224444444",
+    "55556644444334444444442244444444",
+    "55556444444344477744422244444444",
+    "55555444443344477774422444444444",
+    "55555444443444447774222444444444",
+    "55554444443444444774224444444444",
+    "55554444443344444442224444444444",
+    "55554444444344444442244444444444",
+    "55544444444334444422244444444444",
+    "55664444444433444422444444444444",
+    "55644444444443344222444444444444",
+    "55444444444444382244444444444444",
+    "55444444444444484444444444444444",
+    "55444444444444488444444444444444",
+    "44444444444444448444444444444444",
+    "AAAAAA44449999999999994444AAAAAA",
+    "AAAAAA44449999999999994444AAAAAA",
+    "AAAAAA44449999999999994444AAAAAA",
+    "BBBBAAA9999999999999999999AAAABB",
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+  ].join('');
+
+  static PARAGRAPH_REGIONS = {
+    1: ['1'],
+    2: [],
+    3: [],
+    4: ['2'],
+    5: ['3', '4'],
+    6: ['7'],
+    7: ['5', '6'],
+    8: ['8'],
+    9: ['9', 'A'],
+    10: ['B']
+  };
+
+  static get observedAttributes() {
+    return ['window-title', 'prompt', 'width', 'height', 'top', 'left', 'mode'];
+  }
+
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+
+    // Drag & window state
+    this.isDragging = false;
+    this.isMinimized = false;
+    this.dragStartClientX = 0;
+    this.dragStartClientY = 0;
+    this.lastClientX = 0;
+    this.lastClientY = 0;
+    this.initialScrollX = 0;
+    this.initialScrollY = 0;
+    this.initialLeft = 0;
+    this.initialTop = 0;
+    this.maxDragLeft = Infinity;
+    this.maxDragTop = Infinity;
+    this.autoScrollRAF = null;
+    this._scrollTarget = null;
+    this._origSnapType = '';
+    this._origBehavior = '';
+    this._settleTimer = null;
+    this._onScroll = this.handleScroll.bind(this);
+
+    // Mode & Tethering state
+    this.mode = 'text'; // 'text' (default) | 'map'
+    this.mapSpawned = false;
+    this.tetheredTo = null;
+    this.spawnTimeout = null;
+    this.mapFullyLoaded = false;
+    this.gridTiles = [];
+
+    // Game & Interactive state
+    this.gameState = 'BOOT'; // 'BOOT' | 'PRINTING' | 'FINISHED'
+    this.isActive = false;
+    this.typewriterActive = false;
+    this.typewriterTimeout = null;
+    this.proseText = `Before the first tongue shaped a name for the earth, and before the tread of mortal feet bruised a single stem of wild clover, the land lay in unbroken communion with its own deep breath. It was an unmeasured expanse of stone, loam, and water, born of ancient cataclysms that had cooled into an immense, rhythmic solitude.
+
+To the high north and east, the world was bound by a jagged wall of mountains—an upheaval of grey gneiss, dark basalt, and folded slate that tore the lower sky into ragged ribbons of cloud. These were not mere hills, but the world’s colossal ribs, thrown up when the crust was yet hot and supple. Their summits were crowned with eternal snowpacks that gleamed with the pale, cold fire of dawn, flanked by ancient paleoglaciers whose blue-veined tongues ground inexorably down through the cirques, chewing granite to flour. Here, above the treeline, the air had the thin, iron taste of newly struck flint. Wind, older than memory, scoured the scree slopes and howled through cyclopean cols, driving plumes of powdered ice across chasms so profound the sun could only ever strike their western rims at midsummer.
+
+From the frozen heart of these heights sprang the realm’s great arterial life. In the warmer months of the temperate cycle, the glaciers wept. Ten thousand rivulets, clear as lens-glass, seeped from beneath the ice-tongues, gathering in high, shale-bottomed tarns that mirrored the empty vault of heaven. From these reservoirs, the water found its fury. It spilled over lip and ledge in roaring ribbons of foam, plunging down tiered precipices into the darkness of colossal gorges split by the planet's cooling.
+
+As these torrents descended, they met, coalesced, and deepened, swollen by the rains that clung to the mountain flanks, until they formed two great sister-rivers—mighty surges of water that functioned as the pulse and pulmonary channels of the entire continent.
+
+The eastern artery was the swifter, cutting a violently direct path through a plateau of layered red sandstone. It had gnawed a canyon a mile deep into the earth’s crust—a dizzying chasm where mist rose perpetually from the thresh of rapids. Down in the canyon bed, the water was a surging jade-green, thick with crushed silt and cold enough to numb the bone. Along its sheer walls, hanging gardens of primordial ferns and liverworts clung to seeps in the rock, fed by the eternal vapor. Great boulders the size of hillocks tumbled through the gorge with underwater thuds like muffled drums, slowly ground to roundness by the river’s merciless muscle.
+
+The western artery was broader, heavier, and more deliberate. Spilling from the mountain roots through a fractured piedmont of rolling, wind-swept hills, it broadened into a majestic, silver-plated channel half a league across. It carried the marrow of the mountains into a primeval basin. Here flourished an unbroken canopy of temperate wilderness: forests of colossal, moss-cloaked hemlocks, deep-barked oaks with boughs broad as alleys, and pale, lichen-streaked birches that shivered at the water’s edge. Beneath this vaulted roof of leaf and needle, the forest floor was a thick, soft mattress of rot and resurrection, where shelf-fungi sprouted like pale moons from the flanks of fallen giants, and the soil was rich and black with the unhurried decay of ten thousand unharvested autumns.
+
+Between the two main watercourses lay a sprawling network of tributaries—lesser capillaries that snaked through the greenwood, carving oxbow lakes, feeding dark, reed-choked marshes, and pooling in wide, glassy sheets of freshwater where the land leveled toward the lowlands. In these drowned clearings, water-lilies spread pads large enough to bear the weight of nesting herons, and the surface was broken only by the dimpling rise of ancient, armored fish or the sudden plunge of an osprey from the grey sky.
+
+To the west, where the plateau sloped gently toward the prevailing winds, the forest gave way to vast, undulating downs—rolling hills of wild rye and fescue that rippled like an inland sea beneath the passage of cloud-shadows. Craggy limestone bluffs erupted through the turf at intervals, resembling the drowned bones of sea-beasts cast ashore when the world was brine. In the hollows of these hills lay misty bogs, smelling of sulfur and damp moss, where peat-water the color of dark ale stood stagnant among cotton-grass and gnarled dwarf willows.
+
+Eventually, leagues south of the mountain wall, the sister-rivers converged. Their coming together was a silent, monstrous meeting of waters, forming a single flood that cleaved the lowland forests before spilling toward the maritime margin.
+
+Here, the realm met the ocean in an untamed, violent drama. The continent did not slip meekly into the sea; it fought it. The coast was a battered barrier of black shale cliffs, basalt sea-stacks, and long, claw-like peninsulas that reached out into the churning foam. Where the great river met the tides, it shattered into a labyrinthine delta—a colossal web of mud-bars, braided channels, and tidal flats where freshwater fought the salt. Storms born in the deep sea swept in unhindered, throwing towers of grey brine against the cliffs and filling the estuarial air with the tang of kelp, ozone, and wet sand.
+
+Above it all, there was no sound but the primordial liturgy of the wild: the grinding groan of the ice in the high cirques, the liquid roar of cataracts, the wind soughing through leagues of nameless branches, and the crash of the surf against unmapped stone. The land waited, vast and complete in its own silence, pregnant with a history that had not yet begun.`;
+
+    this.render();
+  }
+
+  connectedCallback() {
+    this.setupEventListeners();
+    this.setupInitialPosition();
+    if (this.currentMode === 'map') {
+      this.initMapStandby();
+    } else {
+      this.initBootScreen();
+    }
+  }
+
+  disconnectedCallback() {
+    this.removeEventListeners();
+    if (this.tetheredTo && this.tetheredTo.parentNode) {
+      const other = this.tetheredTo;
+      this.tetheredTo = null;
+      other.tetheredTo = null;
+      other.remove();
+    }
+    if (this.autoScrollRAF) {
+      cancelAnimationFrame(this.autoScrollRAF);
+      this.autoScrollRAF = null;
+    }
+    if (this._settleTimer) {
+      clearTimeout(this._settleTimer);
+      this._settleTimer = null;
+    }
+    if (this._scrollTarget) {
+      if (this._scrollTarget !== window) {
+        this._scrollTarget.style.scrollSnapType = this._origSnapType || '';
+        this._scrollTarget.style.scrollBehavior = this._origBehavior || '';
+      }
+      this._scrollTarget.removeEventListener('scroll', this._onScroll);
+      this._scrollTarget = null;
+    }
+    if (this.typewriterTimeout) {
+      clearTimeout(this.typewriterTimeout);
+      this.typewriterTimeout = null;
+    }
+    if (this.spawnTimeout) {
+      clearTimeout(this.spawnTimeout);
+      this.spawnTimeout = null;
+    }
+    this.typewriterActive = false;
+  }
+
+  getScrollTarget() {
+    return this.closest('.scroll-container') || document.querySelector('.scroll-container') || window;
+  }
+
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (oldValue === newValue) return;
+    if (name === 'mode') {
+      this.mode = newValue;
+    }
+    if (name === 'window-title' && this.titleEl) {
+      this.titleEl.textContent = newValue;
+    }
+    if (name === 'prompt' && this.promptEl) {
+      this.promptEl.textContent = newValue;
+    }
+    if (name === 'width' && this.windowEl) {
+      this.windowEl.style.width = newValue;
+    }
+    if (name === 'height' && this.windowEl) {
+      this.windowEl.style.height = newValue;
+    }
+  }
+
+  get currentMode() {
+    return this.getAttribute('mode') || this.mode || 'text';
+  }
+
+  get terminalTitle() {
+    return this.getAttribute('window-title') || 'dungeon-crawler-text';
+  }
+
+  get promptSymbol() {
+    return this.getAttribute('prompt') || 'loremaster >';
+  }
+
+  get terminalWidth() {
+    return this.getAttribute('width') || '450px';
+  }
+
+  get terminalHeight() {
+    return this.getAttribute('height') || '450px';
+  }
+
+  render() {
+    this.shadowRoot.innerHTML = `
+      <style>
+        :host {
+          display: block;
+          position: absolute;
+          z-index: 1000;
+          font-family: "Cascadia Code", "Consolas", "IBM Plex Mono", "Courier New", monospace;
+          color: #705a42;
+          font-size: 13px;
+          line-height: 1.2;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+
+        *, *::before, *::after {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          user-select: none !important;
+          -webkit-user-select: none !important;
+        }
+
+        /* Terminal Window Container */
+        .terminal-window {
+          position: relative;
+          background: #0a0806;
+          color: #705a42;
+          display: flex;
+          flex-direction: column;
+          border: 1px solid #30271d;
+          overflow: hidden;
+          width: ${this.terminalWidth};
+          height: ${this.terminalHeight};
+          min-width: 260px;
+          min-height: 260px;
+          max-width: 98vw;
+          box-shadow: none !important;
+        }
+
+        /* Minimized state */
+        .terminal-window.minimized {
+          height: auto !important;
+          min-height: 0 !important;
+        }
+
+        .terminal-window.minimized .content-area {
+          display: none !important;
+        }
+
+        /* ── Header Row (Title bar & Window Controls) ── */
+        .header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: #120e0a;
+          border-bottom: 1px solid #30271d;
+          padding: 6px 12px;
+          cursor: move;
+          user-select: none;
+          flex-shrink: 0;
+        }
+
+        .box-title {
+          color: #705a42;
+          font-weight: 700;
+          letter-spacing: 1px;
+          font-size: 0.78rem;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          transition: color 0.15s ease;
+        }
+
+        .terminal-window.active .box-title {
+          color: #d4bea7;
+        }
+
+        .box-btn-group {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
+        }
+
+        /* Bracketed retro buttons */
+        .box-btn {
+          background: transparent;
+          border: none;
+          color: #705a42;
+          font-family: inherit;
+          font-size: 13px;
+          line-height: 1;
+          cursor: pointer;
+          padding: 0 4px;
+          margin: 0;
+          user-select: none;
+          transition: background 0.1s, color 0.1s;
+        }
+
+        .box-btn:hover {
+          background: #1c1610;
+          color: #d4bea7;
+        }
+
+        .box-btn:active {
+          background: #30271d;
+          color: #f0e2d3;
+        }
+
+        /* Hidden command input to capture keyboard events & mobile typing */
+        .hidden-cmd-input {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 0;
+          height: 0;
+          opacity: 0;
+          padding: 0;
+          margin: 0;
+          border: none;
+          outline: none;
+          pointer-events: none;
+        }
+
+        /* ── Terminal Content Area ── */
+        .content-area {
+          flex: 1;
+          padding: 8px 12px;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          background: #0a0806;
+          overflow: hidden;
+        }
+
+        .terminal-scroll-area {
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+          display: flex;
+          flex-direction: column;
+          user-select: none !important;
+          -webkit-user-select: none !important;
+        }
+
+        /* Retro scrollbars */
+        .terminal-scroll-area::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+        .terminal-scroll-area::-webkit-scrollbar-track {
+          background: #0a0806;
+          border-left: 1px solid #30271d;
+        }
+        .terminal-scroll-area::-webkit-scrollbar-thumb {
+          background: #30271d;
+        }
+        .terminal-scroll-area::-webkit-scrollbar-thumb:hover {
+          background: #705a42;
+        }
+
+        /* Output container for ASCII art, prose, and log history */
+        .output-container {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .ascii-box {
+          font-family: inherit;
+          white-space: pre;
+          color: #705a42;
+          margin: 4px 0 12px 0;
+          line-height: 1.2;
+          user-select: none !important;
+          -webkit-user-select: none !important;
+        }
+
+        /* Slow, sharp step-blink without gradient/fade */
+        .boot-prompt {
+          color: #705a42;
+          font-size: 13px;
+          margin-bottom: 8px;
+          user-select: none !important;
+          animation: boot-blink 1.4s steps(1) infinite;
+        }
+
+        @keyframes boot-blink {
+          0%, 49% {
+            opacity: 1;
+          }
+          50%, 100% {
+            opacity: 0;
+          }
+        }
+
+        .prose-block {
+          margin: 4px 0 12px 0;
+          line-height: 1.5;
+          color: #705a42;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+
+        .prose-speaker {
+          color: #705a42;
+          font-weight: 700;
+          margin-right: 6px;
+        }
+
+        .prose-text {
+          color: #705a42;
+          white-space: pre-wrap;
+        }
+
+        /* ── Map Mode Styling (Matching Viewer Page Grid) ── */
+        .map-frame {
+          display: inline-flex;
+          flex-direction: column;
+          align-items: center;
+          width: max-content;
+          margin: 4px auto auto auto;
+          user-select: none !important;
+          -webkit-user-select: none !important;
+        }
+
+        .map-status-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          color: #30271d;
+          font-size: 11px;
+          padding: 0 1px 4px 1px;
+          letter-spacing: 0.5px;
+          width: 100%;
+          box-sizing: border-box;
+          font-family: inherit;
+        }
+
+        .map-grid-container {
+          display: inline-grid;
+          border: 1px solid #30271d;
+          background: #0a0806;
+          box-shadow: 0 0 12px rgba(10, 8, 6, 0.8);
+          width: max-content;
+          margin: 0 auto;
+        }
+
+        .tile-matrix {
+          display: grid;
+          grid-template-columns: repeat(32, 12px);
+          grid-template-rows: repeat(32, 12px);
+          gap: 0px;
+          background: #0a0806;
+          padding: 0;
+          width: max-content;
+        }
+
+        .tile {
+          width: 12px;
+          height: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: inherit;
+          font-size: 8.6px;
+          color: #705a42;
+          background: #0a0806;
+          line-height: 1;
+        }
+
+        .tile.scan-cursor {
+          color: #0a0806;
+          font-weight: 700;
+          background: #705a42;
+        }
+
+        .log-row {
+          display: flex;
+          align-items: baseline;
+          margin-bottom: 4px;
+          line-height: 1.3;
+        }
+
+        .input-text {
+          color: #705a42;
+          white-space: pre-wrap;
+          word-break: break-all;
+        }
+
+        /* Active Prompt Row */
+        .input-row {
+          display: flex;
+          align-items: baseline;
+          flex-wrap: wrap;
+          margin-top: 2px;
+          line-height: 1.3;
+          user-select: none !important;
+          -webkit-user-select: none !important;
+        }
+
+        .prompt-label {
+          color: #705a42;
+          font-weight: 700;
+          margin-right: 6px;
+          flex-shrink: 0;
+          user-select: none !important;
+        }
+
+        /* Text cursor - blinks only when active */
+        .cursor {
+          display: inline-block;
+          color: #705a42;
+          font-weight: 700;
+          margin-left: 1px;
+          opacity: 0;
+          user-select: none !important;
+        }
+
+        .terminal-window.active .cursor {
+          opacity: 1;
+          animation: retro-cursor-blink 1s steps(1) infinite;
+        }
+
+        @keyframes retro-cursor-blink {
+          0%, 49% {
+            opacity: 1;
+          }
+          50%, 100% {
+            opacity: 0;
+          }
+        }
+
+        /* ── Mobile Responsive Overrides (Viewer standard <= 600px) ── */
+        @media (max-width: 600px) {
+          .terminal-window {
+            width: 310px !important;
+            height: 310px !important;
+          }
+
+          .tile-matrix {
+            grid-template-columns: repeat(32, 7px);
+            grid-template-rows: repeat(32, 7px);
+          }
+
+          .tile {
+            width: 7px;
+            height: 7px;
+            font-size: 5px;
+          }
+
+          .ascii-box {
+            font-size: 9.5px;
+            line-height: 1.1;
+          }
+        }
+      </style>
+
+      <div class="terminal-window" id="window">
+        <!-- Hidden input to capture focus & keystrokes -->
+        <input type="text" class="hidden-cmd-input" id="cmdInput" autocomplete="off" spellcheck="false" aria-label="Terminal Input">
+
+        <!-- 1. Top Header Row -->
+        <div class="header-row" id="dragHandle">
+          <div class="box-title" id="title">${this.terminalTitle}</div>
+          <div class="box-btn-group">
+            <button class="box-btn btn-min" id="btnMin" aria-label="Minimize">[_]</button>
+            <button class="box-btn btn-close" id="btnClose" aria-label="Close">[X]</button>
+          </div>
+        </div>
+
+        <!-- 2. Middle Content Row -->
+        <div class="content-area" id="contentArea">
+          <div class="terminal-scroll-area" id="scrollArea">
+            <div class="output-container" id="outputContainer"></div>
+            <div class="input-row" id="inputRow" style="display: none;">
+              <span class="prompt-label" id="promptLabel">${this.promptSymbol}&nbsp;</span>
+              <span class="input-text" id="inputText"></span>
+              <span class="cursor">|</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Cache elements
+    this.windowEl = this.shadowRoot.getElementById('window');
+    this.cmdInput = this.shadowRoot.getElementById('cmdInput');
+    this.dragHandle = this.shadowRoot.getElementById('dragHandle');
+    this.titleEl = this.shadowRoot.getElementById('title');
+    this.contentArea = this.shadowRoot.getElementById('contentArea');
+    this.scrollArea = this.shadowRoot.getElementById('scrollArea');
+    this.outputContainer = this.shadowRoot.getElementById('outputContainer');
+    this.inputRow = this.shadowRoot.getElementById('inputRow');
+    this.promptEl = this.shadowRoot.getElementById('promptLabel');
+    this.inputText = this.shadowRoot.getElementById('inputText');
+    this.btnMin = this.shadowRoot.getElementById('btnMin');
+    this.btnClose = this.shadowRoot.getElementById('btnClose');
+  }
+
+  setupInitialPosition() {
+    const isMobile = window.innerWidth <= 600;
+    const customTop = this.getAttribute('top') || (isMobile ? '20px' : '60px');
+    let customLeft = this.getAttribute('left') || (isMobile ? '10px' : '60px');
+    
+    if (isMobile) {
+      let leftVal = parseFloat(customLeft);
+      const termWidth = 310;
+      // Only clamp if it actually overflows the viewport
+      if (leftVal + termWidth > window.innerWidth - 5) {
+        customLeft = Math.max(5, window.innerWidth - termWidth - 5) + 'px';
+      }
+    }
+    
+    this.style.top = customTop;
+    this.style.left = customLeft;
+    DungeonTerminal.highestZIndex = (DungeonTerminal.highestZIndex || 1000) + 1;
+    this.style.zIndex = DungeonTerminal.highestZIndex;
+  }
+
+  setupEventListeners() {
+    // Window dragging with Pointer Events (document scroll aware)
+    this._onPointerDown = this.handlePointerDown.bind(this);
+    this._onPointerMove = this.handlePointerMove.bind(this);
+    this._onPointerUp = this.handlePointerUp.bind(this);
+
+    this.dragHandle.addEventListener('pointerdown', this._onPointerDown);
+    this.dragHandle.addEventListener('pointermove', this._onPointerMove);
+    this.dragHandle.addEventListener('pointerup', this._onPointerUp);
+    this.dragHandle.addEventListener('pointercancel', this._onPointerUp);
+
+    // Minimize & Close button controls
+    this.btnMin.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleMinimize();
+    });
+
+    this.btnClose.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.closeTerminal();
+    });
+
+    // Window Activation / Focus on click
+    this._onWindowPointerDown = (e) => {
+      if (e.target.closest('.box-btn')) return;
+      // Prevent browser from stealing focus away from cmdInput on non-input clicks
+      if (!e.target.closest('#dragHandle')) {
+        e.preventDefault();
+      }
+      this.activate();
+    };
+    this.windowEl.addEventListener('pointerdown', this._onWindowPointerDown);
+
+    this._onWindowClick = (e) => {
+      if (e.target.closest('.box-btn')) return;
+      this.activate();
+    };
+    this.windowEl.addEventListener('click', this._onWindowClick);
+
+    // Hidden input focus & blur
+    this._onCmdFocus = () => {
+      this.windowEl.classList.add('active');
+      this.isActive = true;
+    };
+    this._onCmdBlur = () => {
+      this.windowEl.classList.remove('active');
+      this.isActive = false;
+    };
+    this.cmdInput.addEventListener('focus', this._onCmdFocus);
+    this.cmdInput.addEventListener('blur', this._onCmdBlur);
+
+    // Enter key handling (Starts boot sequence & skips typewriter)
+    this._onCmdKeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.handleEnterKey();
+      }
+    };
+    this.cmdInput.addEventListener('keydown', this._onCmdKeydown);
+  }
+
+  removeEventListeners() {
+    if (this.dragHandle) {
+      this.dragHandle.removeEventListener('pointerdown', this._onPointerDown);
+      this.dragHandle.removeEventListener('pointermove', this._onPointerMove);
+      this.dragHandle.removeEventListener('pointerup', this._onPointerUp);
+      this.dragHandle.removeEventListener('pointercancel', this._onPointerUp);
+    }
+    if (this.windowEl) {
+      if (this._onWindowPointerDown) {
+        this.windowEl.removeEventListener('pointerdown', this._onWindowPointerDown);
+      }
+      if (this._onWindowClick) {
+        this.windowEl.removeEventListener('click', this._onWindowClick);
+      }
+    }
+    if (this.cmdInput) {
+      this.cmdInput.removeEventListener('focus', this._onCmdFocus);
+      this.cmdInput.removeEventListener('blur', this._onCmdBlur);
+      this.cmdInput.removeEventListener('keydown', this._onCmdKeydown);
+    }
+  }
+
+  /* ── Drag & Reposition Logic (Bypasses CSS Scroll Snap during drag) ── */
+  handlePointerDown(e) {
+    if (e.target.closest('.box-btn')) return;
+    this.activate();
+
+    this.isDragging = true;
+    try {
+      this.dragHandle.setPointerCapture(e.pointerId);
+    } catch (_) {}
+
+    // Track viewport client coordinates
+    this.dragStartClientX = e.clientX;
+    this.dragStartClientY = e.clientY;
+    this.lastClientX = e.clientX;
+    this.lastClientY = e.clientY;
+
+    const scrollTarget = this.getScrollTarget();
+    this._scrollTarget = scrollTarget;
+
+    if (this._settleTimer) {
+      clearTimeout(this._settleTimer);
+      this._settleTimer = null;
+    }
+
+    // Temporarily bypass CSS scroll snap on parent container during active drag
+    if (scrollTarget !== window) {
+      this._origSnapType = scrollTarget.style.scrollSnapType;
+      this._origBehavior = scrollTarget.style.scrollBehavior;
+      scrollTarget.style.scrollSnapType = 'none';
+      scrollTarget.style.scrollBehavior = 'auto';
+    }
+
+    this.initialScrollX = scrollTarget === window ? window.scrollX : scrollTarget.scrollLeft;
+    this.initialScrollY = scrollTarget === window ? window.scrollY : scrollTarget.scrollTop;
+
+    this.initialLeft = parseFloat(this.style.left) || this.offsetLeft;
+    this.initialTop = parseFloat(this.style.top) || this.offsetTop;
+
+    // Calculate document / container limits to prevent infinite expansion
+    const termWidth = this.windowEl ? this.windowEl.offsetWidth : (this.offsetWidth || 450);
+    const termHeight = this.windowEl ? this.windowEl.offsetHeight : (this.offsetHeight || 450);
+
+    const docWidth = scrollTarget === window
+      ? Math.max(document.body.scrollWidth, document.documentElement.scrollWidth)
+      : scrollTarget.scrollWidth;
+    const docHeight = scrollTarget === window
+      ? Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)
+      : scrollTarget.scrollHeight;
+
+    this.maxDragLeft = Math.max(0, docWidth - termWidth);
+    this.maxDragTop = Math.max(0, docHeight - termHeight);
+
+    this._scrollTarget.addEventListener('scroll', this._onScroll, { passive: true });
+    this.startAutoScroll();
+
+    e.preventDefault();
+  }
+
+  handlePointerMove(e) {
+    if (!this.isDragging) return;
+
+    this.lastClientX = e.clientX;
+    this.lastClientY = e.clientY;
+
+    this.updateDragPosition();
+  }
+
+  handleScroll() {
+    if (!this.isDragging) return;
+    this.updateDragPosition();
+  }
+
+  updateDragPosition() {
+    const scrollTarget = this._scrollTarget || this.getScrollTarget();
+    const currentScrollX = scrollTarget === window ? window.scrollX : scrollTarget.scrollLeft;
+    const currentScrollY = scrollTarget === window ? window.scrollY : scrollTarget.scrollTop;
+
+    const dx = this.lastClientX - this.dragStartClientX;
+    const dy = this.lastClientY - this.dragStartClientY;
+    const scrollDeltaX = currentScrollX - this.initialScrollX;
+    const scrollDeltaY = currentScrollY - this.initialScrollY;
+
+    let nextLeft = this.initialLeft + dx + scrollDeltaX;
+    let nextTop = this.initialTop + dy + scrollDeltaY;
+
+    // Boundary protection: clamp to container limits
+    nextLeft = Math.max(0, Math.min(nextLeft, this.maxDragLeft));
+    nextTop = Math.max(0, Math.min(nextTop, this.maxDragTop));
+
+    this.style.left = `${nextLeft}px`;
+    this.style.top = `${nextTop}px`;
+  }
+
+  startAutoScroll() {
+    if (this.autoScrollRAF) {
+      cancelAnimationFrame(this.autoScrollRAF);
+    }
+
+    const checkScroll = () => {
+      if (!this.isDragging) return;
+
+      const scrollTarget = this._scrollTarget || this.getScrollTarget();
+      const edgeThreshold = 75;
+
+      const rect = scrollTarget === window
+        ? { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth }
+        : scrollTarget.getBoundingClientRect();
+
+      const currentScrollY = scrollTarget === window ? window.scrollY : scrollTarget.scrollTop;
+      const currentScrollX = scrollTarget === window ? window.scrollX : scrollTarget.scrollLeft;
+      const maxScrollY = scrollTarget === window
+        ? Math.max(0, document.documentElement.scrollHeight - window.innerHeight)
+        : Math.max(0, scrollTarget.scrollHeight - scrollTarget.clientHeight);
+      const maxScrollX = scrollTarget === window
+        ? Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
+        : Math.max(0, scrollTarget.scrollWidth - scrollTarget.clientWidth);
+
+      // Top edge detection
+      if (this.lastClientY < rect.top + edgeThreshold) {
+        const dist = Math.max(1, this.lastClientY - rect.top);
+        const speed = Math.round(Math.max(8, (1 - dist / edgeThreshold) * 24));
+        if (currentScrollY > 0) {
+          if (scrollTarget === window) {
+            window.scrollBy(0, -speed);
+          } else {
+            scrollTarget.scrollTop = Math.max(0, scrollTarget.scrollTop - speed);
+          }
+          this.updateDragPosition();
+        }
+      } else if (this.lastClientY > rect.bottom - edgeThreshold) {
+        // Bottom edge detection
+        const dist = Math.max(1, rect.bottom - this.lastClientY);
+        const speed = Math.round(Math.max(8, (1 - dist / edgeThreshold) * 24));
+        if (currentScrollY < maxScrollY) {
+          if (scrollTarget === window) {
+            window.scrollBy(0, speed);
+          } else {
+            scrollTarget.scrollTop = Math.min(maxScrollY, scrollTarget.scrollTop + speed);
+          }
+          this.updateDragPosition();
+        }
+      }
+
+      // Horizontal edge detection
+      if (this.lastClientX < rect.left + edgeThreshold) {
+        const dist = Math.max(1, this.lastClientX - rect.left);
+        const speed = Math.round(Math.max(8, (1 - dist / edgeThreshold) * 24));
+        if (currentScrollX > 0) {
+          if (scrollTarget === window) {
+            window.scrollBy(-speed, 0);
+          } else {
+            scrollTarget.scrollLeft = Math.max(0, scrollTarget.scrollLeft - speed);
+          }
+          this.updateDragPosition();
+        }
+      } else if (this.lastClientX > rect.right - edgeThreshold) {
+        const dist = Math.max(1, rect.right - this.lastClientX);
+        const speed = Math.round(Math.max(8, (1 - dist / edgeThreshold) * 24));
+        if (currentScrollX < maxScrollX) {
+          if (scrollTarget === window) {
+            window.scrollBy(speed, 0);
+          } else {
+            scrollTarget.scrollLeft = Math.min(maxScrollX, scrollTarget.scrollLeft + speed);
+          }
+          this.updateDragPosition();
+        }
+      }
+
+      this.autoScrollRAF = requestAnimationFrame(checkScroll);
+    };
+
+    this.autoScrollRAF = requestAnimationFrame(checkScroll);
+  }
+
+  handlePointerUp(e) {
+    if (this.isDragging) {
+      this.isDragging = false;
+      if (this.autoScrollRAF) {
+        cancelAnimationFrame(this.autoScrollRAF);
+        this.autoScrollRAF = null;
+      }
+
+      try {
+        this.dragHandle.releasePointerCapture(e.pointerId);
+      } catch (_) {}
+
+      const scrollTarget = this._scrollTarget;
+      if (scrollTarget && scrollTarget !== window) {
+        this.smoothSettleAndRestoreSnap(scrollTarget);
+      } else if (scrollTarget === window) {
+        window.removeEventListener('scroll', this._onScroll);
+      }
+    }
+  }
+
+  getNearestSectionTop(scrollContainer) {
+    const sections = scrollContainer.querySelectorAll('section[data-section-id]');
+    if (!sections || sections.length === 0) return scrollContainer.scrollTop;
+
+    const currentCenterY = scrollContainer.scrollTop + scrollContainer.clientHeight / 2;
+    let nearestTop = scrollContainer.scrollTop;
+    let minDiff = Infinity;
+
+    for (let i = 0; i < sections.length; i++) {
+      const secCenter = sections[i].offsetTop + sections[i].offsetHeight / 2;
+      const diff = Math.abs(currentCenterY - secCenter);
+      if (diff < minDiff) {
+        minDiff = diff;
+        nearestTop = sections[i].offsetTop;
+      }
+    }
+    return nearestTop;
+  }
+
+  smoothSettleAndRestoreSnap(scrollTarget) {
+    const targetTop = this.getNearestSectionTop(scrollTarget);
+    const delta = Math.abs(scrollTarget.scrollTop - targetTop);
+
+    // If already aligned with the section snap point (< 15px), restore snap immediately
+    if (delta < 15) {
+      scrollTarget.style.scrollSnapType = this._origSnapType || '';
+      scrollTarget.style.scrollBehavior = this._origBehavior || '';
+      scrollTarget.removeEventListener('scroll', this._onScroll);
+      return;
+    }
+
+    // Smoothly glide to the target section
+    scrollTarget.scrollTo({ top: targetTop, behavior: 'smooth' });
+
+    let settled = false;
+    const onSettle = () => {
+      if (settled) return;
+      settled = true;
+      scrollTarget.removeEventListener('scrollend', onSettle);
+      if (this._settleTimer) {
+        clearTimeout(this._settleTimer);
+        this._settleTimer = null;
+      }
+      scrollTarget.style.scrollSnapType = this._origSnapType || '';
+      scrollTarget.style.scrollBehavior = this._origBehavior || '';
+      scrollTarget.removeEventListener('scroll', this._onScroll);
+    };
+
+    scrollTarget.addEventListener('scrollend', onSettle, { once: true });
+    this._settleTimer = setTimeout(onSettle, 500);
+  }
+
+  /* ── Window Controls ── */
+  toggleMinimize() {
+    this.isMinimized = !this.isMinimized;
+    if (this.isMinimized) {
+      this.windowEl.classList.add('minimized');
+      this.btnMin.textContent = '[+]';
+      this.btnMin.setAttribute('aria-label', 'Restore');
+    } else {
+      this.windowEl.classList.remove('minimized');
+      this.btnMin.textContent = '[_]';
+      this.btnMin.setAttribute('aria-label', 'Minimize');
+    }
+    this.dispatchEvent(new CustomEvent('terminal-minimize', {
+      detail: { isMinimized: this.isMinimized },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  closeTerminal() {
+    if (this.tetheredTo && this.tetheredTo.parentNode) {
+      const other = this.tetheredTo;
+      this.tetheredTo = null;
+      other.tetheredTo = null;
+      other.closeTerminal();
+    }
+
+    // Dispatch cancelable event. If React handles unmounting, do not call this.remove()
+    const evt = new CustomEvent('terminal-close', {
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+    });
+    const notHandled = this.dispatchEvent(evt);
+    if (notHandled) {
+      this.remove();
+    }
+  }
+
+  /* ── Interactive & Game Flow Methods ── */
+  activate() {
+    DungeonTerminal.highestZIndex = (DungeonTerminal.highestZIndex || 1000) + 1;
+    this.style.zIndex = DungeonTerminal.highestZIndex;
+    this.cmdInput.focus({ preventScroll: true });
+    this.windowEl.classList.add('active');
+    this.isActive = true;
+  }
+
+  initBootScreen() {
+    this.gameState = 'BOOT';
+    this.outputContainer.innerHTML = `
+      <pre class="ascii-box">
++-----------------------------------+
+|                                   |
+|         dungeon_crawler_t         |
+|                                   |
++-----------------------------------+</pre>
+      <div class="boot-prompt">[ press enter to simulate world ]</div>
+    `;
+    this.inputRow.style.display = 'none';
+    this.cmdInput.value = '';
+    this.inputText.textContent = '';
+  }
+
+  handleEnterKey() {
+    if (this.gameState === 'BOOT') {
+      if (this.currentMode === 'text' && !this.mapSpawned) {
+        this.spawnMapTerminal();
+      }
+      this.startLoremasterProse();
+    } else if (this.gameState === 'PRINTING') {
+      // Skipping disabled: Enter key does nothing during typewriter
+    } else if (this.gameState === 'FINISHED') {
+      // Resting state - ready for next phase
+    }
+  }
+
+  startLoremasterProse() {
+    this.gameState = 'PRINTING';
+    this.outputContainer.innerHTML = '';
+    this.inputRow.style.display = 'none';
+
+    // Split prose into distinct paragraphs
+    const paragraphs = this.proseText
+      .split(/\n\s*\n/)
+      .map(p => p.trim())
+      .filter(Boolean);
+
+    let paraIndex = 0;
+    let charIndex = 0;
+    let currentProseSpan = null;
+    let currentCursor = null;
+
+    this.typewriterActive = true;
+
+    const startParagraph = (index) => {
+      if (!this.typewriterActive) return;
+
+      const pText = paragraphs[index];
+      charIndex = 0;
+
+      // Spawn a new paragraph row with loremaster > prompt (zero extraneous whitespace in innerHTML)
+      const proseBlock = document.createElement('div');
+      proseBlock.className = 'prose-block';
+      proseBlock.innerHTML = `<span class="prose-speaker">${this.promptSymbol}&nbsp;</span><span class="prose-text"></span><span class="cursor" style="opacity: 1;">|</span>`;
+      this.outputContainer.appendChild(proseBlock);
+
+      currentProseSpan = proseBlock.querySelector('.prose-text');
+      currentCursor = proseBlock.querySelector('.cursor');
+      this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+
+      // 1. Prepare map synchronization promise (pure signal listener, attached at paragraph start)
+      let mapPromise = Promise.resolve();
+      if (this.tetheredTo) {
+        if (index === 0) {
+          if (!this.tetheredTo.mapFullyLoaded) {
+            mapPromise = new Promise((resolve) => {
+              this.tetheredTo.addEventListener('terminal-map-complete', resolve, { once: true });
+            });
+          }
+        } else {
+          mapPromise = new Promise((resolve) => {
+            const onMutationDone = (e) => {
+              if (e.detail && e.detail.paraIndex === index) {
+                this.tetheredTo.removeEventListener('terminal-map-mutation-complete', onMutationDone);
+                resolve();
+              }
+            };
+            this.tetheredTo.addEventListener('terminal-map-mutation-complete', onMutationDone);
+          });
+        }
+      }
+
+      // 2. Emit signal that paragraph started (triggers concurrent map radar/mutation!)
+      this.dispatchEvent(new CustomEvent('terminal-para-start', { detail: { index } }));
+
+      // 3. Prepare typing promise
+      const typingPromise = new Promise((resolve) => {
+        const typeNextChar = () => {
+          if (!this.typewriterActive) {
+            resolve();
+            return;
+          }
+
+          if (charIndex < pText.length) {
+            currentProseSpan.textContent += pText[charIndex];
+            charIndex++;
+            this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+
+            // Vintage typewriter rhythm
+            const char = pText[charIndex - 1];
+            let delay = 12;
+            if (char === '.' || char === '!' || char === '?') {
+              delay = 130;
+            } else if (char === ',' || char === '—') {
+              delay = 60;
+            }
+
+            this.typewriterTimeout = setTimeout(typeNextChar, delay);
+          } else {
+            // Typing complete for this paragraph
+            this.dispatchEvent(new CustomEvent('terminal-para-end', { detail: { index } }));
+            resolve();
+          }
+        };
+
+        typeNextChar();
+      });
+
+      // 4. Synchronize: proceed only when BOTH the prose typing and map operations have resolved
+      Promise.all([typingPromise, mapPromise]).then(() => {
+        if (!this.typewriterActive) return;
+
+        if (currentCursor) {
+          currentCursor.remove();
+          currentCursor = null;
+        }
+
+        const nextIndex = index + 1;
+        if (nextIndex < paragraphs.length) {
+          this.typewriterTimeout = setTimeout(() => startParagraph(nextIndex), 220);
+        } else {
+          this.finishLoremasterProse();
+        }
+      });
+    };
+
+    startParagraph(0);
+  }
+
+  finishLoremasterProse(cursorEl) {
+    this.typewriterActive = false;
+    if (cursorEl) cursorEl.remove();
+    if (this.typewriterTimeout) {
+      clearTimeout(this.typewriterTimeout);
+      this.typewriterTimeout = null;
+    }
+
+    this.gameState = 'FINISHED';
+    this.inputRow.style.display = 'none';
+    this.cmdInput.value = '';
+    this.inputText.textContent = '';
+    this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+  }
+
+  spawnMapTerminal() {
+    this.mapSpawned = true;
+
+    const isMobile = window.innerWidth <= 600;
+    const defaultDimension = isMobile ? '310px' : '450px';
+
+    const mapTerm = document.createElement('dungeon-terminal');
+    mapTerm.setAttribute('mode', 'map');
+    mapTerm.setAttribute('window-title', 'dungeon-crawler-text');
+    mapTerm.setAttribute('prompt', 'sensor >');
+    mapTerm.setAttribute('width', this.getAttribute('width') || defaultDimension);
+    mapTerm.setAttribute('height', this.getAttribute('height') || defaultDimension);
+
+    // Calculate position: intentional retro messy overlap cascade
+    const currentLeft = parseFloat(this.style.left) || (isMobile ? 10 : 40);
+    const currentTop = parseFloat(this.style.top) || (isMobile ? 20 : 40);
+    const currentTermWidth = this.windowEl ? this.windowEl.offsetWidth : (isMobile ? 310 : 450);
+
+    let targetLeft, targetTop;
+
+    if (isMobile) {
+      // Aggressive vertical cascade for distinct overlapping on narrow screens
+      const mobileOffsetTop = 50 + Math.floor(Math.random() * 25); // 50px - 75px
+      targetTop = currentTop + mobileOffsetTop;
+
+      const minLeft = 8;
+      const maxLeft = Math.max(minLeft, window.innerWidth - currentTermWidth - 8);
+
+      // Bidirectional / alternating horizontal stagger
+      if (maxLeft > minLeft + 15) {
+        // If parent is towards left edge, place child towards right edge, and vice-versa
+        if (currentLeft < (minLeft + maxLeft) / 2) {
+          targetLeft = Math.round(maxLeft - Math.random() * 8);
+        } else {
+          targetLeft = Math.round(minLeft + Math.random() * 8);
+        }
+      } else {
+        // Very tight screen: small jitter within bounds
+        const jitter = (Math.random() > 0.5 ? 1 : -1) * (10 + Math.floor(Math.random() * 10));
+        targetLeft = Math.max(minLeft, Math.min(maxLeft, currentLeft + jitter));
+      }
+    } else {
+      // Desktop messy cascade
+      const offsetLeft = 40 + Math.floor(Math.random() * 30);
+      const offsetTop = 50 + Math.floor(Math.random() * 20);
+      targetLeft = currentLeft + offsetLeft;
+      targetTop = currentTop + offsetTop;
+
+      // Keep within desktop bounds
+      if (targetLeft + currentTermWidth > window.innerWidth - 10) {
+        targetLeft = Math.max(10, window.innerWidth - currentTermWidth - 10);
+      }
+    }
+
+    mapTerm.setAttribute('left', `${targetLeft}px`);
+    mapTerm.setAttribute('top', `${targetTop}px`);
+
+    // Cross-tether both terminals so closing either kills both
+    this.tetheredTo = mapTerm;
+    mapTerm.tetheredTo = this;
+
+    // Standardized cross-terminal event trigger:
+    // When this loremaster terminal emits 'terminal-para-start':
+    // - Index 0 triggers initial 32x32 radar dot grid scan (with 600ms cinematic delay)
+    // - Index > 0 triggers the corresponding regional map mutation concurrently!
+    const onParaStart = (e) => {
+      if (!e.detail) return;
+      if (e.detail.index === 0) {
+        setTimeout(() => {
+          if (mapTerm && typeof mapTerm.startMapGrid === 'function') {
+            mapTerm.startMapGrid();
+          }
+        }, 600);
+      } else if (e.detail.index > 0) {
+        if (mapTerm && typeof mapTerm.startMapMutation === 'function') {
+          mapTerm.startMapMutation(e.detail.index);
+        }
+      }
+    };
+    this.addEventListener('terminal-para-start', onParaStart);
+
+    // Append to same container
+    if (this.parentNode) {
+      this.parentNode.appendChild(mapTerm);
+      setTimeout(() => {
+        if (mapTerm.activate) mapTerm.activate();
+      }, 50);
+    }
+  }
+
+  initMapStandby() {
+    this.gameState = 'STANDBY';
+    this.mapFullyLoaded = false;
+    this.outputContainer.innerHTML = '';
+    this.inputRow.style.display = 'none';
+
+    // Map frame matching viewer page layout (standby mode)
+    const mapFrame = document.createElement('div');
+    mapFrame.className = 'map-frame';
+    mapFrame.innerHTML = `
+      <div class="map-status-bar">
+        <span>[WORLD MAP]</span>
+        <span>[32x32]</span>
+      </div>
+      <div class="map-grid-container">
+        <div class="tile-matrix" id="tileMatrix"></div>
+      </div>
+    `;
+    this.outputContainer.appendChild(mapFrame);
+
+    const matrixEl = mapFrame.querySelector('#tileMatrix');
+    // Scanner cursor tile waiting in standby
+    const cursorTile = document.createElement('span');
+    cursorTile.className = 'tile scan-cursor';
+    cursorTile.textContent = '|';
+    matrixEl.appendChild(cursorTile);
+  }
+
+  startMapGrid() {
+    if (this.mapFullyLoaded || this.gameState === 'PRINTING') return;
+
+    this.gameState = 'PRINTING';
+    this.dispatchEvent(new CustomEvent('terminal-map-start'));
+
+    // Check if matrix already initialized by standby
+    let matrixEl = this.shadowRoot.getElementById('tileMatrix');
+    let cursorTile = this.shadowRoot.querySelector('.tile.scan-cursor');
+
+    if (!matrixEl) {
+      this.initMapStandby();
+      matrixEl = this.shadowRoot.getElementById('tileMatrix');
+      cursorTile = this.shadowRoot.querySelector('.tile.scan-cursor');
+    }
+
+    const totalTiles = 32 * 32; // 1024
+    let tileIndex = 0;
+
+    this.typewriterActive = true;
+    this.gridTiles = [];
+
+    const typeNextTile = () => {
+      if (!this.typewriterActive) return;
+
+      if (tileIndex < totalTiles) {
+        const tile = document.createElement('span');
+        tile.className = 'tile';
+        tile.textContent = '.';
+        if (cursorTile && cursorTile.parentNode === matrixEl) {
+          matrixEl.insertBefore(tile, cursorTile);
+        } else {
+          matrixEl.appendChild(tile);
+        }
+        this.gridTiles.push(tile);
+        tileIndex++;
+
+        this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+
+        // Vintage CRT line scan cadence: 5ms per dot, 25ms pause at end of each 32-tile row
+        let delay = 5;
+        if (tileIndex % 32 === 0) {
+          delay = 25;
+        }
+
+        this.typewriterTimeout = setTimeout(typeNextTile, delay);
+      } else {
+        // Complete scan
+        if (cursorTile) cursorTile.remove();
+        this.mapFullyLoaded = true;
+        this.finishLoremasterProse();
+        this.dispatchEvent(new CustomEvent('terminal-map-complete'));
+      }
+    };
+
+    typeNextTile();
+  }
+
+  startMapMutation(paraIndex) {
+    if (!this.gridTiles || this.gridTiles.length === 0) {
+      const matrixEl = this.shadowRoot.getElementById('tileMatrix');
+      if (matrixEl) {
+        this.gridTiles = Array.from(matrixEl.querySelectorAll('.tile:not(.scan-cursor)'));
+      }
+    }
+
+    const targetRegions = DungeonTerminal.PARAGRAPH_REGIONS[paraIndex] || [];
+    if (!targetRegions || targetRegions.length === 0 || !this.gridTiles || this.gridTiles.length === 0) {
+      setTimeout(() => {
+        this.dispatchEvent(new CustomEvent('terminal-map-mutation-complete', { detail: { paraIndex } }));
+      }, 20);
+      return;
+    }
+
+    // Find all tiles belonging to targetRegions that need mutation
+    const indicesToMutate = [];
+    for (let i = 0; i < DungeonTerminal.REGION_GRID.length; i++) {
+      if (targetRegions.includes(DungeonTerminal.REGION_GRID[i])) {
+        if (this.gridTiles[i] && this.gridTiles[i].textContent !== DungeonTerminal.TERRAIN_GRID[i]) {
+          indicesToMutate.push(i);
+        }
+      }
+    }
+
+    if (indicesToMutate.length === 0) {
+      setTimeout(() => {
+        this.dispatchEvent(new CustomEvent('terminal-map-mutation-complete', { detail: { paraIndex } }));
+      }, 20);
+      return;
+    }
+
+    this.dispatchEvent(new CustomEvent('terminal-map-mutation-start', { detail: { paraIndex, count: indicesToMutate.length } }));
+
+    let mIdx = 0;
+    const mutateNext = () => {
+      if (!this.parentNode) return;
+
+      if (mIdx < indicesToMutate.length) {
+        const tileIdx = indicesToMutate[mIdx];
+        const targetChar = DungeonTerminal.TERRAIN_GRID[tileIdx];
+        if (this.gridTiles[tileIdx]) {
+          this.gridTiles[tileIdx].textContent = targetChar;
+        }
+        mIdx++;
+
+        this.scrollArea.scrollTop = this.scrollArea.scrollHeight;
+        this.typewriterTimeout = setTimeout(mutateNext, 12);
+      } else {
+        this.dispatchEvent(new CustomEvent('terminal-map-mutation-complete', { detail: { paraIndex } }));
+      }
+    };
+
+    mutateNext();
+  }
+}
+
+// Register Custom Element (<dungeon-terminal>)
+if (!customElements.get('dungeon-terminal')) {
+  customElements.define('dungeon-terminal', DungeonTerminal);
+}
+
+export const RetroTerminal = DungeonTerminal;
+
+/**
+ * Programmatic Spawner Helper Function (Singleton / Anti-Duplicate)
+ */
+export function spawnDungeonTerminal(config = {}) {
+  // Enforce singleton: prevent duplicate terminal instances
+  const existing = document.querySelector('dungeon-terminal');
+  if (existing) {
+    console.warn('[DungeonTerminal] Instance already exists on page.');
+    return existing;
+  }
+
+  const term = document.createElement('dungeon-terminal');
+
+  term.setAttribute('window-title', config.title || 'dungeon-crawler-text');
+  term.setAttribute('prompt', config.prompt || 'loremaster >');
+  term.setAttribute('width', config.width || '450px');
+  term.setAttribute('height', config.height || '450px');
+  term.setAttribute('left', config.left || '40px');
+
+  const scrollContainer = document.querySelector('.scroll-container');
+  const defaultTop = scrollContainer ? (scrollContainer.scrollTop + 60) : (window.scrollY + 60);
+  term.setAttribute('top', config.top || `${defaultTop}px`);
+
+  const mountParent = scrollContainer || document.body;
+  mountParent.appendChild(term);
+  return term;
+}
+
+export default DungeonTerminal;
+
+/* ==============================================================================
+   HOW TO SPAWN THIS TERMINAL IN OTHER PROJECTS (Agent Implementation Guide)
+   ==============================================================================
+   The <dungeon-terminal> is a zero-dependency, self-contained native Web Component.
+   
+   1. SCRIPT INCLUSION:
+      Include this script in your HTML:
+      <script src="path/to/dungeon-crawler-text.js"></script>
+
+   2. HTML DECLARATIVE USAGE:
+      <dungeon-terminal 
+        window-title="dungeon-crawler-text" 
+        prompt="loremaster >" 
+        width="450px" 
+        height="450px" 
+        top="100px" 
+        left="100px">
+      </dungeon-terminal>
+
+   3. PROGRAMMATIC JAVASCRIPT SPAWNING (Single Instance / Anti-Duplicate):
+      Use this helper function to dynamically spawn the terminal anywhere:
+
+      function spawnDungeonTerminal(config = {}) {
+        // Enforce singleton: prevent duplicate terminal instances
+        if (document.querySelector('dungeon-terminal')) {
+          console.warn('[DungeonTerminal] Instance already exists on page.');
+          return null;
+        }
+
+        const term = document.createElement('dungeon-terminal');
+
+        // Optional attributes & defaults
+        term.setAttribute('window-title', config.title || 'dungeon-crawler-text');
+        term.setAttribute('prompt', config.prompt || 'loremaster >');
+        term.setAttribute('width', config.width || '450px');
+        term.setAttribute('height', config.height || '450px');
+        term.setAttribute('left', config.left || '60px');
+        // If top is omitted, spawn 60px below current viewport scroll
+        term.setAttribute('top', config.top || `${window.scrollY + 60}px`);
+
+        document.body.appendChild(term);
+        return term;
+      }
+
+   4. TEARDOWN / KILL:
+      The terminal's [X] button automatically calls `this.remove()` to destroy itself.
+      To programmatically close it from outside code:
+      const existing = document.querySelector('dungeon-terminal');
+      if (existing) existing.remove();
+   ============================================================================== */
+

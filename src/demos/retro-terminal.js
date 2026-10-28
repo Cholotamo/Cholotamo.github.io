@@ -697,23 +697,28 @@ export class RetroTerminal extends HTMLElement {
   }
 }
 
-// Register Custom Element
+// Register Custom Element (<market-analysis-terminal> with backwards-compatible <retro-terminal> alias)
+if (!customElements.get('market-analysis-terminal')) {
+  customElements.define('market-analysis-terminal', RetroTerminal);
+}
 if (!customElements.get('retro-terminal')) {
   customElements.define('retro-terminal', RetroTerminal);
 }
+
+export const MarketAnalysisTerminal = RetroTerminal;
 
 /**
  * Programmatic Spawner Helper Function (Singleton / Anti-Duplicate)
  */
 export function spawnTerminal(config = {}) {
   // Enforce singleton: prevent duplicate terminal instances
-  const existing = document.querySelector('retro-terminal');
+  const existing = document.querySelector('market-analysis-terminal, retro-terminal');
   if (existing) {
-    console.warn('[RetroTerminal] Instance already exists on page.');
+    console.warn('[MarketAnalysisTerminal] Instance already exists on page.');
     return existing;
   }
 
-  const term = document.createElement('retro-terminal');
+  const term = document.createElement('market-analysis-terminal');
 
   term.setAttribute('window-title', config.title || 'REGIONAL RENEWABLES MARKET ANALYSIS');
   term.setAttribute('prompt', config.prompt || 'pipeline_v2.6 >');

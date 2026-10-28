@@ -122,6 +122,7 @@ In your Google Sheet `Projects` tab, set `demo_id` to `my-demo` and `demo_config
 ### Registered Demos Available in the Sheet:
 - **`spawn-window`**: Interactive terminal window demo. Config: `{"title": "...", "spawnX": 20, "spawnY": 10, "pingMs": 40}`
 - **`market-analysis`** (or `market-analysis-pipeline`, `terminal`, `retro-terminal`): Modular terminal Web Component hosting the Regional Renewables Market Analysis walkthrough. Config (optional): `{"width": "820px", "height": "580px", "title": "REGIONAL MARKET ANALYSIS", "prompt": "pipeline_v2.6 >"}`
+- **`dungeon-crawler`** (or `dungeon-crawler-text`, `generative-engine`, `generative-evolution-engine`): Dual-window dungeon crawler Web Component featuring interactive lore terminal tethered to an ASCII radar world scanner map. Config (optional): `{"width": "450px", "height": "450px", "title": "GENERATIVE EVOLUTION ENGINE", "prompt": "loremaster >"}`
 
 ### Adding a Vanilla JavaScript Demo:
 In `src/demos/DemoRegistry.jsx`:

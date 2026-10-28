@@ -699,10 +699,20 @@ export class RetroTerminal extends HTMLElement {
 
 // Register Custom Element (<market-analysis-terminal> with backwards-compatible <retro-terminal> alias)
 if (!customElements.get('market-analysis-terminal')) {
-  customElements.define('market-analysis-terminal', RetroTerminal);
+  try {
+    customElements.define('market-analysis-terminal', RetroTerminal);
+  } catch (err) {
+    console.warn('[MarketAnalysisTerminal] Registration failed:', err);
+  }
 }
 if (!customElements.get('retro-terminal')) {
-  customElements.define('retro-terminal', RetroTerminal);
+  try {
+    // WHATWG Custom Elements spec requires a distinct constructor for each registered tag
+    class RetroTerminalAlias extends RetroTerminal {}
+    customElements.define('retro-terminal', RetroTerminalAlias);
+  } catch (err) {
+    console.warn('[RetroTerminal] Legacy alias registration failed:', err);
+  }
 }
 
 export const MarketAnalysisTerminal = RetroTerminal;

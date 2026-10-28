@@ -1447,7 +1447,11 @@ Above it all, there was no sound but the primordial liturgy of the wild: the gri
 
 // Register Custom Element (<dungeon-terminal>)
 if (!customElements.get('dungeon-terminal')) {
-  customElements.define('dungeon-terminal', DungeonTerminal);
+  try {
+    customElements.define('dungeon-terminal', DungeonTerminal);
+  } catch (err) {
+    console.warn('[DungeonTerminal] Registration failed:', err);
+  }
 }
 
 export const RetroTerminal = DungeonTerminal;

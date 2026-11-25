@@ -17,7 +17,7 @@ Add the following headers in row 1:
 
 | id | title | category | year | page_title | description | tags | metrics | demo_id | demo_config |
 |---|---|---|---|---|---|---|---|---|---|
-| 01 | AUTONOMOUS REASONING SWARM | AGENTIC ARCHITECTURE | 2026 | ARCHITECTURE & DECOMPOSITION | A multi-agent cognitive architecture... | MULTI-AGENT, TOOL EXECUTION | 99.4% EXECUTION COMPLETION | spawn-window | {"title": "SWARM_ALPHA", "spawnX": 25, "spawnY": 15, "pingMs": 32} |
+| 01 | AUTONOMOUS REASONING SWARM | AGENTIC ARCHITECTURE | 2026 | ARCHITECTURE & DECOMPOSITION | A multi-agent cognitive architecture... | MULTI-AGENT, [GITHUB](https://github.com/yourusername/swarm) | 99.4% EXECUTION COMPLETION | spawn-window | {"title": "SWARM_ALPHA", "spawnX": 25, "spawnY": 15, "pingMs": 32} |
 | 01 | | | | RECOVERY PROTOCOLS | Fault-tolerant consensus protocols allowing autonomous subagents... | FAULT TOLERANCE, STATE RECOVERY | SUB-12MS RECOVERY | | |
 | 02 | AGENT MEMORY GRAPH ENGINE | KNOWLEDGE & RETRIEVAL | 2025 | | Persistent episodic and semantic memory pipeline... | GRAPH RAG, EPISODIC MEMORY | <45MS RETRIEVAL | | |
 
@@ -28,7 +28,8 @@ Add the following headers in row 1:
   - The Floating CLI will automatically detect the multiple pages and type `cd ./page-02`, `cd ../page-01` as you swipe horizontally!
   - You can optionally specify a `page_title` (e.g. `ARCHITECTURE`, `METRICS`) which will be displayed in brackets `[ PAGE_TITLE ]` above that page's description.
 - **Adding/removing sections:** Just add or remove different IDs! The site will automatically update the number of project sections, adjust the counter indicators (e.g., `[ 01 / 05 ]`), and teach the Floating CLI how to navigate to the new section.
-- **`tags`:** Separate multiple tags with commas.
+- **`tags`:** Separate multiple tags with commas. To make any individual tag a clickable link, write it using Markdown syntax (`[LABEL](https://example.com)`) or pipe shorthand (`LABEL | https://example.com` or `LABEL | github.com/user/repo`). Plain tags and linked tags can be freely mixed in the same cell (e.g. `MULTI-AGENT, [SOURCE CODE](https://github.com/user/repo), PAPER | arxiv.org/abs/2501.00000`).
+  - *Note:* Do not use Google Sheets' rich-text Insert Link (`Ctrl+K` / `Cmd+K`) or `=HYPERLINK(...)` formulas, as Google Sheets strips link URLs when publishing to CSV (`output=csv`).
 - **`demo_id`:** The identifier of the JavaScript demo registered in `src/demos/DemoRegistry.jsx`.
 - **`demo_config`:** A JSON string of arguments/props passed directly into your demo function or component.
 

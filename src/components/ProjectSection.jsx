@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import SplitText from './SplitText';
 import Blinker from './Blinker';
 import { DemoRenderer } from '../demos/DemoRegistry';
+import { parseTags, isExternalTagUrl } from '../utils/parseTags';
 
 export default function ProjectSection({
   project,
@@ -138,14 +139,7 @@ export default function ProjectSection({
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {rawPages.map((page, pIdx) => {
-          const pageTags = Array.isArray(page.tags)
-            ? page.tags
-            : typeof page.tags === 'string'
-            ? page.tags
-                .split(',')
-                .map((t) => t.trim())
-                .filter(Boolean)
-            : [];
+          const pageTags = parseTags(page.tags);
 
           const isPageActive = isActive && activePageIndex === pIdx;
 
@@ -184,18 +178,51 @@ export default function ProjectSection({
               {/* Render Tags for this page */}
               {pageTags.length > 0 && (
                 <div className="flex flex-wrap gap-3 mb-8">
-                  {pageTags.map((tag) => (
-                    <span
-                      key={tag}
-                      className={`border px-3 py-1 text-xs tracking-wider uppercase transition-colors duration-300 ${
-                        isPageActive
-                          ? 'text-offwhite border-border-active'
-                          : 'text-muted border-border'
-                      }`}
-                    >
-                      <SplitText text={tag} onHover={handleHover} onLeave={handleLeave} />
-                    </span>
-                  ))}
+                  {pageTags.map((tag, tagIdx) => {
+                    const tagKey = `${tag.label}-${tag.url || tagIdx}`;
+                    const baseTagClass =
+                      'border px-3 py-1 text-xs tracking-wider uppercase transition-colors duration-300';
+
+                    if (tag.url) {
+                      const external = isExternalTagUrl(tag.url);
+                      const displayLabel = `${tag.label} ${external ? '↗' : '→'}`;
+
+                      return (
+                        <a
+                          key={tagKey}
+                          href={tag.url}
+                          target={external ? '_blank' : undefined}
+                          rel={external ? 'noopener noreferrer' : undefined}
+                          onMouseEnter={handleHover}
+                          onMouseLeave={handleLeave}
+                          className={`${baseTagClass} inline-flex items-center cursor-pointer outline-none ${
+                            isPageActive
+                              ? 'bg-surface text-offwhite border-border-active hover:bg-offwhite hover:text-background hover:border-border-active focus-visible:bg-offwhite focus-visible:text-background focus-visible:border-border-active'
+                              : 'text-muted border-border hover:text-offwhite hover:border-border-active focus-visible:text-offwhite focus-visible:border-border-active'
+                          }`}
+                        >
+                          <SplitText text={displayLabel} interactive />
+                        </a>
+                      );
+                    }
+
+                    return (
+                      <span
+                        key={tagKey}
+                        className={`${baseTagClass} ${
+                          isPageActive
+                            ? 'text-offwhite border-border-active'
+                            : 'text-muted border-border'
+                        }`}
+                      >
+                        <SplitText
+                          text={tag.label}
+                          onHover={handleHover}
+                          onLeave={handleLeave}
+                        />
+                      </span>
+                    );
+                  })}
                 </div>
               )}
 

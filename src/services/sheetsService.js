@@ -5,6 +5,7 @@ import {
   DEFAULT_SITE_INFO,
 } from '../data/defaultContent';
 import { SHEETS_CONFIG } from '../config/sheetsConfig';
+import { parseTags } from '../utils/parseTags';
 
 /**
  * Normalizes an object's keys to lowercase without underscores or hyphens.
@@ -72,12 +73,7 @@ export async function fetchProjects() {
     const rawId = row.id || String(idx + 1);
     const formattedId = String(rawId).padStart(2, '0');
 
-    const tags = row.tags
-      ? row.tags
-          .split(',')
-          .map((t) => t.trim())
-          .filter(Boolean)
-      : [];
+    const tags = parseTags(row.tags);
 
     const pageData = {
       pageTitle: row.pagetitle || row.pagesubtitle || '',

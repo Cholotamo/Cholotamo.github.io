@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useFallback } from '../contexts/FallbackContext';
 
-export default function SplitText({ text, className = '', onHover, onLeave }) {
+export default function SplitText({
+  text,
+  className = '',
+  onHover,
+  onLeave,
+  interactive = false,
+}) {
   const isFallback = useFallback();
   const [currentText, setCurrentText] = useState(text || '');
 
@@ -42,6 +48,10 @@ export default function SplitText({ text, className = '', onHover, onLeave }) {
 
   if (!text) return null;
   const words = currentText.split(' ');
+  const charClassName = interactive
+    ? 'inline cursor-pointer transition-none'
+    : 'inline hover:bg-offwhite hover:text-background cursor-default transition-none';
+
   return (
     <span className={`inline ${className}`}>
       {words.map((word, wIdx) => (
@@ -52,7 +62,7 @@ export default function SplitText({ text, className = '', onHover, onLeave }) {
                 key={cIdx}
                 onMouseEnter={onHover}
                 onMouseLeave={onLeave}
-                className="inline hover:bg-offwhite hover:text-background cursor-default transition-none"
+                className={charClassName}
               >
                 {char}
               </span>
@@ -62,7 +72,7 @@ export default function SplitText({ text, className = '', onHover, onLeave }) {
             <span
               onMouseEnter={onHover}
               onMouseLeave={onLeave}
-              className="inline hover:bg-offwhite hover:text-background cursor-default transition-none"
+              className={charClassName}
             >
               {' '}
             </span>
